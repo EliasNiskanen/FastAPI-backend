@@ -5,8 +5,8 @@ import httpx
 import pytest
 
 from app.config import Settings
-from app.services.alphavantage import (
-    AlphaVantageClient,
+from app.services.alphavantage import AlphaVantageClient
+from app.services.market import (
     ExternalAPIError,
     RateLimitedError,
     SymbolNotFoundError,

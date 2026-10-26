@@ -8,8 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.db import get_engine
-from app.routers import stocks
-from app.services.alphavantage import ExternalAPIError, RateLimitedError, SymbolNotFoundError
+from app.routers import crypto, stocks
+from app.services.market import ExternalAPIError, RateLimitedError, SymbolNotFoundError
 
 settings = get_settings()
 logging.basicConfig(
@@ -20,7 +20,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Market data backend", version="0.2.0")
+app = FastAPI(title="Market data backend", version="0.3.0")
 
 if settings.cors_origins:
     app.add_middleware(
@@ -31,6 +31,7 @@ if settings.cors_origins:
     )
 
 app.include_router(stocks.router)
+app.include_router(crypto.router)
 
 
 # ---- Error handling: map internal errors to clean HTTP responses ----

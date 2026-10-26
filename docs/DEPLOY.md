@@ -10,7 +10,8 @@ flowchart LR
     FE[Frontend] -->|GET /api/stocks/SYMBOL| API[FastAPI container]
     SCH[GitHub Actions cron] -->|POST /api/ingest/SYMBOL| API
     API -->|read / upsert| DB[(PostgreSQL)]
-    API -->|only when data is stale| AV[Alpha Vantage]
+    API -->|stocks, only when stale| AV[Alpha Vantage]
+    API -->|crypto, only when stale| BN[Binance public API]
 ```
 
 ## Configuration
@@ -19,13 +20,20 @@ flowchart LR
 |---|---|---|
 | `DATABASE_URL` | yes | `postgresql+psycopg://user:pass@host:5432/db`. URL-encode special characters in the password. |
 | `ALPHAVANTAGE_API_KEY` | yes | Keep it in a secret store, never in code. |
-| `CACHE_TTL_MINUTES` | no | Default 60. How old stored data may be before the API is called again. |
+| `CACHE_TTL_MINUTES` | no | Default 60. How old stored stock data may be before Alpha Vantage is called again. |
+| `CRYPTO_CACHE_TTL_MINUTES` | no | Default 5. Same for crypto (Binance has no daily quota). |
+| `DEFAULT_CRYPTO_QUOTE` | no | Default `USDT`. Quote currency when a request has no `?quote=`. |
 | `CORS_ORIGINS` | no | Comma-separated frontend origins. |
 | `INGEST_TOKEN` | recommended | Protects `POST /api/ingest/*`. Generate with `openssl rand -hex 32`. |
 | `RUN_MIGRATIONS` | no | Default `true`: the container runs `alembic upgrade head` before starting. |
 | `PORT` | no | Set automatically by Cloud Run. Default 8000. |
 
 Health checks: `GET /health` (process up) and `GET /health/ready` (database reachable).
+
+**Region matters for crypto:** Binance blocks requests from some countries,
+including the US. Run the backend in an EU region (`europe-north1` on GCP,
+`eu-north-1` on AWS). The GitHub Actions ingest only calls *your* API, so it
+is not affected.
 
 ---
 
@@ -258,15 +266,17 @@ Then Actions → **Deploy to AWS (ECS Express Mode)** → Run workflow.
 
 ## Scheduled data pulls (both clouds)
 
-`.github/workflows/ingest.yml` runs on weekdays after US market close and
-calls `POST /api/ingest/{symbol}` for each symbol, for both `5min` and
-`daily`. Set:
+`.github/workflows/ingest.yml` pulls stocks on weekdays after US market close
+(`5min` and `daily`) and crypto twice a day, every day (`5min`, `60min`,
+`daily`). Set:
 
 - Variable `API_URL`: the service URL (Cloud Run URL or `*.ecs.*.on.aws`)
-- Variable `INGEST_SYMBOLS`: e.g. `IBM AAPL MSFT`
+- Variable `INGEST_SYMBOLS`: stocks, e.g. `IBM AAPL MSFT`
+- Variable `INGEST_CRYPTO`: crypto pairs, e.g. `BTC/EUR ETH/EUR SOL/USDT`
 - Secret `INGEST_TOKEN`: same value as in the cloud secret store
 
-With the free Alpha Vantage quota, keep `symbols × 2` well under the daily limit.
+With the free Alpha Vantage quota, keep `stock symbols × 2` well under the
+daily limit. Crypto does not use that quota.
 
 ## Migrations
 

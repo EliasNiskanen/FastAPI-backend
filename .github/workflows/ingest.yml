@@ -1,33 +1,56 @@
 # Scheduled data pull, works the same whichever cloud the API runs on.
-# Calls POST /api/ingest/{symbol} so the database fills up even when nobody
-# has the frontend open, at a pace that fits the free API quota.
+# Calls the ingest endpoints so the database fills up even when nobody has
+# the frontend open.
 #
-# Repository variables: API_URL (e.g. https://market-backend-xxxx.a.run.app),
-#                       INGEST_SYMBOLS (e.g. "IBM AAPL MSFT")
-# Repository secret:    INGEST_TOKEN
+# Repository variables:
+#   API_URL         e.g. https://market-backend-xxxx.a.run.app
+#   INGEST_SYMBOLS  stocks, e.g. "IBM AAPL MSFT"           (Alpha Vantage, daily quota!)
+#   INGEST_CRYPTO   crypto pairs as BASE/QUOTE, e.g. "BTC/EUR ETH/USDT" (Binance, free)
+# Repository secret:
+#   INGEST_TOKEN
 name: Scheduled ingest
 
 on:
   schedule:
-    - cron: "17 21 * * 1-5" # weekdays 21:17 UTC, after US market close
+    - cron: "17 21 * * 1-5" # stocks + crypto: weekdays after US market close
+    - cron: "47 */12 * * *" # crypto only: twice a day, every day (crypto never closes)
   workflow_dispatch:
 
 jobs:
-  ingest:
-    if: vars.API_URL != ''
+  stocks:
+    if: vars.API_URL != '' && vars.INGEST_SYMBOLS != '' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 21 * * 1-5')
     runs-on: ubuntu-latest
     steps:
-      - name: Pull latest bars
+      - name: Pull stock bars
         env:
           TOKEN: ${{ secrets.INGEST_TOKEN }}
         run: |
           for s in ${{ vars.INGEST_SYMBOLS }}; do
             for interval in 5min daily; do
               echo "== $s $interval"
-              curl --fail-with-body -sS -X POST \
-                -H "X-Ingest-Token: $TOKEN" \
+              curl --fail-with-body -sS -X POST -H "X-Ingest-Token: $TOKEN" \
                 "${{ vars.API_URL }}/api/ingest/$s?interval=$interval"
               echo
               sleep 15  # stay well under Alpha Vantage's per-minute limit
+            done
+          done
+
+  crypto:
+    if: vars.API_URL != '' && vars.INGEST_CRYPTO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull crypto candles
+        env:
+          TOKEN: ${{ secrets.INGEST_TOKEN }}
+        run: |
+          # 1000 candles per call: 5min covers ~3.5 days, so two runs a day leave no gaps.
+          for pair in ${{ vars.INGEST_CRYPTO }}; do
+            base="${pair%/*}"; quote="${pair#*/}"
+            for interval in 5min 60min daily; do
+              echo "== $base/$quote $interval"
+              curl --fail-with-body -sS -X POST -H "X-Ingest-Token: $TOKEN" \
+                "${{ vars.API_URL }}/api/ingest/crypto/$base?quote=$quote&interval=$interval"
+              echo
+              sleep 1
             done
           done

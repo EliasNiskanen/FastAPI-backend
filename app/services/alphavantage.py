@@ -5,7 +5,6 @@ app/services/prices.py.
 """
 
 import logging
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -13,33 +12,15 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import Settings
+from app.services.market import (
+    SUPPORTED_INTERVALS,
+    Bar,
+    ExternalAPIError,
+    RateLimitedError,
+    SymbolNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
-
-INTRADAY_INTERVALS = ("1min", "5min", "15min", "30min", "60min")
-SUPPORTED_INTERVALS = (*INTRADAY_INTERVALS, "daily")
-
-
-@dataclass(frozen=True)
-class Bar:
-    ts: datetime  # UTC
-    open: Decimal
-    high: Decimal
-    low: Decimal
-    close: Decimal
-    volume: int
-
-
-class ExternalAPIError(Exception):
-    """Base error for problems talking to the external market data API."""
-
-
-class SymbolNotFoundError(ExternalAPIError):
-    pass
-
-
-class RateLimitedError(ExternalAPIError):
-    pass
 
 
 class AlphaVantageClient:
@@ -106,7 +87,7 @@ class AlphaVantageClient:
                     high=Decimal(values["2. high"]),
                     low=Decimal(values["3. low"]),
                     close=Decimal(values["4. close"]),
-                    volume=int(values["5. volume"]),
+                    volume=Decimal(values["5. volume"]),
                 )
             )
         bars.sort(key=lambda b: b.ts)
