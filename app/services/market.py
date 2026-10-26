@@ -14,6 +14,8 @@ AssetClass = Literal["stock", "crypto"]
 
 @dataclass(frozen=True)
 class Bar:
+    """One OHLCV candle: open, high, low, close and traded volume for one time period."""
+
     ts: datetime  # candle open time, UTC
     open: Decimal
     high: Decimal
@@ -27,8 +29,8 @@ class ExternalAPIError(Exception):
 
 
 class SymbolNotFoundError(ExternalAPIError):
-    pass
+    """The provider does not know the requested symbol (mapped to HTTP 404)."""
 
 
 class RateLimitedError(ExternalAPIError):
-    pass
+    """The provider's request quota is used up (mapped to HTTP 503 + Retry-After)."""

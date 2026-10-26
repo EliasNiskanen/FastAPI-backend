@@ -24,13 +24,17 @@ logger = logging.getLogger(__name__)
 
 
 class AlphaVantageClient:
+    """Fetches stock candles from Alpha Vantage. Needs ALPHAVANTAGE_API_KEY."""
+
     def __init__(self, settings: Settings, http: httpx.Client | None = None):
+        """Create the client. `http` can be replaced in tests with a fake transport."""
         if not settings.alphavantage_api_key:
             raise ExternalAPIError("ALPHAVANTAGE_API_KEY is not configured")
         self._settings = settings
         self._http = http or httpx.Client(timeout=settings.http_timeout_seconds)
 
     def fetch_bars(self, symbol: str, interval: str) -> list[Bar]:
+        """Download the latest candles for a stock symbol and return them oldest first."""
         if interval not in SUPPORTED_INTERVALS:
             raise ValueError(f"Unsupported interval: {interval}")
 
@@ -54,6 +58,11 @@ class AlphaVantageClient:
 
     @staticmethod
     def _parse(symbol: str, interval: str, data: dict) -> list[Bar]:
+        """Turn an Alpha Vantage JSON response into Bars, or raise the matching error.
+
+        Alpha Vantage reports errors with HTTP 200 and a special key in the body,
+        so errors are detected from the JSON content.
+        """
         if "Error Message" in data:
             raise SymbolNotFoundError(f"Unknown symbol: {symbol}")
         # Alpha Vantage answers HTTP 200 with a "Note"/"Information" text when

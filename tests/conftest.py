@@ -1,3 +1,8 @@
+"""Shared pytest fixtures: in-memory SQLite database, fake data fetchers and a test client.
+
+Tests never call real external APIs or a real database.
+"""
+
 import os
 
 # Tests never touch real services. Environment variables win over a local .env,
@@ -82,6 +87,7 @@ SAMPLE_INTRADAY = {
 
 @pytest.fixture
 def session() -> Iterator[Session]:
+    """A fresh, empty in-memory database for each test."""
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -91,7 +97,10 @@ def session() -> Iterator[Session]:
 
 
 class FakeFetcher:
+    """Stand-in for a real API client: returns fixed bars (or raises `exc`) and counts calls."""
+
     def __init__(self, bars=None, exc: Exception | None = None):
+        """Use the given bars, or default to the parsed sample Alpha Vantage response."""
         from app.services.alphavantage import AlphaVantageClient
 
         self.calls = 0
@@ -101,6 +110,7 @@ class FakeFetcher:
         )
 
     def __call__(self, symbol: str, interval: str):
+        """Pretend to fetch: record the call, then return the bars or raise the configured error."""
         self.calls += 1
         self.last_symbol = symbol
         if self.exc:
@@ -110,11 +120,13 @@ class FakeFetcher:
 
 @pytest.fixture
 def fake_fetcher() -> FakeFetcher:
+    """Fake stock data source (Alpha Vantage sample data)."""
     return FakeFetcher()
 
 
 @pytest.fixture
 def fake_crypto_fetcher() -> FakeFetcher:
+    """Fake crypto data source (Binance sample klines)."""
     from app.services.binance import BinanceClient
 
     return FakeFetcher(bars=BinanceClient._parse(SAMPLE_KLINES))
@@ -124,6 +136,7 @@ def fake_crypto_fetcher() -> FakeFetcher:
 def client(
     session: Session, fake_fetcher: FakeFetcher, fake_crypto_fetcher: FakeFetcher
 ) -> Iterator[TestClient]:
+    """HTTP test client wired to the test database and the fake fetchers."""
     app.dependency_overrides[get_session] = lambda: session
     app.dependency_overrides[get_fetcher] = lambda: fake_fetcher
     app.dependency_overrides[get_crypto_fetcher] = lambda: fake_crypto_fetcher

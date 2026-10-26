@@ -12,6 +12,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """All configurable values. Each field maps to an environment variable of the same name in upper case."""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # postgresql+psycopg://user:password@host:5432/dbname
@@ -43,6 +45,7 @@ class Settings(BaseSettings):
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
+        """Allow CORS_ORIGINS to be given as a comma-separated string in the environment."""
         if isinstance(value, str):
             return [o.strip() for o in value.split(",") if o.strip()]
         return value
@@ -50,4 +53,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """Return the settings, created once and cached for the lifetime of the process."""
     return Settings()

@@ -1,3 +1,5 @@
+"""Alembic migration runner. Reads DATABASE_URL from app settings and applies migrations from alembic/versions."""
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -13,6 +15,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    """Generate migration SQL without connecting to a database (alembic upgrade --sql)."""
     context.configure(
         url=get_settings().database_url,
         target_metadata=target_metadata,
@@ -24,6 +27,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """Connect to the database and apply pending migrations."""
     with get_engine().connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

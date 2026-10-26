@@ -1,3 +1,5 @@
+"""FastAPI application entry point: logging, CORS, routers, error handlers and health checks."""
+
 import logging
 
 from fastapi import FastAPI, Request, status
@@ -39,11 +41,13 @@ app.include_router(crypto.router)
 
 @app.exception_handler(SymbolNotFoundError)
 def _symbol_not_found(_: Request, exc: SymbolNotFoundError) -> JSONResponse:
+    """Unknown stock symbol or crypto pair -> HTTP 404."""
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)})
 
 
 @app.exception_handler(RateLimitedError)
 def _rate_limited(_: Request, exc: RateLimitedError) -> JSONResponse:
+    """External API quota used up -> HTTP 503, telling the client to retry in 60 seconds."""
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": str(exc)},
@@ -53,11 +57,13 @@ def _rate_limited(_: Request, exc: RateLimitedError) -> JSONResponse:
 
 @app.exception_handler(ExternalAPIError)
 def _external_error(_: Request, exc: ExternalAPIError) -> JSONResponse:
+    """External API unreachable or returned garbage -> HTTP 502."""
     return JSONResponse(status_code=status.HTTP_502_BAD_GATEWAY, content={"detail": str(exc)})
 
 
 @app.exception_handler(SQLAlchemyError)
 def _db_error(_: Request, exc: SQLAlchemyError) -> JSONResponse:
+    """Any database failure -> HTTP 503, with details only in the server log."""
     logger.exception("Database error")
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": "Database unavailable"}

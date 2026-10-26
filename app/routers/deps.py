@@ -13,5 +13,9 @@ def require_ingest_token(
     settings: Annotated[Settings, Depends(get_settings)],
     x_ingest_token: Annotated[str | None, Header()] = None,
 ) -> None:
+    """Reject the request with 401 unless the X-Ingest-Token header matches INGEST_TOKEN.
+
+    If INGEST_TOKEN is not set (local development), every request is allowed.
+    """
     if settings.ingest_token and x_ingest_token != settings.ingest_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ingest token")
