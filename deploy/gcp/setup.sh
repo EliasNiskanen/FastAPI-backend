@@ -38,6 +38,24 @@ put_secret() {
   echo "   saved secret: $name"
 }
 
+# Give a member a project role. A service account created seconds ago may not
+# be visible yet ("does not exist"), so retry for up to ~2 minutes.
+grant_role() {
+  local member="$1" role="$2" i
+  for i in $(seq 1 12); do
+    if gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$member" \
+      --role="$role" --condition=None >/dev/null 2>&1; then
+      echo "   granted $role"
+      return 0
+    fi
+    echo "   waiting for $member to become visible ($i/12)..."
+    sleep 10
+  done
+  # Last try without hiding the error, so the real reason is shown.
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="$member" \
+    --role="$role" --condition=None >/dev/null
+}
+
 # Return 0 if the secret already exists (used to keep values on re-runs).
 secret_exists() { gcloud secrets describe "$1" --project "$PROJECT_ID" >/dev/null 2>&1; }
 
@@ -54,7 +72,9 @@ echo "   project: $PROJECT_ID ($PROJECT_NUMBER), region: $REGION"
 
 # ---------------------------------------------------------------------------
 step "Enabling APIs (first time takes a minute)"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+# compute.googleapis.com creates the default service account Cloud Build runs as;
+# enabling it costs nothing.
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com compute.googleapis.com \
   artifactregistry.googleapis.com secretmanager.googleapis.com
 
 # ---------------------------------------------------------------------------
@@ -94,13 +114,10 @@ if ! gcloud iam service-accounts describe "$RUN_SA" >/dev/null 2>&1; then
   gcloud iam service-accounts create "$RUN_SA_NAME" --display-name="Market backend (Cloud Run)"
 fi
 # The app may read secrets, nothing else.
-gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$RUN_SA" \
-  --role=roles/secretmanager.secretAccessor --condition=None >/dev/null
+grant_role "serviceAccount:$RUN_SA" roles/secretmanager.secretAccessor
 # Cloud Build runs as the Compute Engine default service account and needs
 # this role to build and push the image (new projects don't grant it automatically).
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
-  --role=roles/run.builder --condition=None >/dev/null
+grant_role "serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" roles/run.builder
 echo "   ok (a new role can take a couple of minutes to take effect;"
 echo "   if the build fails with a permission error, wait and run the script again)"
 
