@@ -1,0 +1,33 @@
+# Scheduled data pull, works the same whichever cloud the API runs on.
+# Calls POST /api/ingest/{symbol} so the database fills up even when nobody
+# has the frontend open, at a pace that fits the free API quota.
+#
+# Repository variables: API_URL (e.g. https://market-backend-xxxx.a.run.app),
+#                       INGEST_SYMBOLS (e.g. "IBM AAPL MSFT")
+# Repository secret:    INGEST_TOKEN
+name: Scheduled ingest
+
+on:
+  schedule:
+    - cron: "17 21 * * 1-5" # weekdays 21:17 UTC, after US market close
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    if: vars.API_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull latest bars
+        env:
+          TOKEN: ${{ secrets.INGEST_TOKEN }}
+        run: |
+          for s in ${{ vars.INGEST_SYMBOLS }}; do
+            for interval in 5min daily; do
+              echo "== $s $interval"
+              curl --fail-with-body -sS -X POST \
+                -H "X-Ingest-Token: $TOKEN" \
+                "${{ vars.API_URL }}/api/ingest/$s?interval=$interval"
+              echo
+              sleep 15  # stay well under Alpha Vantage's per-minute limit
+            done
+          done
