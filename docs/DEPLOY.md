@@ -37,6 +37,29 @@ is not affected.
 
 ---
 
+## Quick start: Google Cloud Run + Neon (free)
+
+The fastest way to get online. Cloud Run's free tier covers personal use, and
+Neon's free plan gives you PostgreSQL without a credit card.
+
+1. Create a free database at [neon.tech](https://neon.tech) (pick an EU region)
+   and copy its connection string from **Connect**.
+2. Open [Google Cloud Shell](https://shell.cloud.google.com) and run:
+
+   ```bash
+   git clone https://github.com/EliasNiskanen/FastAPI-backend.git
+   cd FastAPI-backend
+   bash deploy/gcp/setup.sh
+   ```
+
+   It asks for the Neon connection string and your Alpha Vantage key, then
+   builds, deploys and prints the app URL. Run the same script again to
+   redeploy after code changes.
+
+The longer sections below cover Cloud SQL, GitHub Actions deploys and AWS.
+
+---
+
 ## Option A: Google Cloud (Cloud Run + Cloud SQL)
 
 Good fit for a personal project: Cloud Run scales to zero when nobody is
