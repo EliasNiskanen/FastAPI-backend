@@ -1,3 +1,5 @@
+"""FastAPI application entry point: logging, CORS, routers, error handlers and health checks."""
+
 import logging
 
 from fastapi import FastAPI, Request, status
@@ -8,8 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.db import get_engine
-from app.routers import stocks
-from app.services.alphavantage import ExternalAPIError, RateLimitedError, SymbolNotFoundError
+from app.routers import crypto, stocks
+from app.services.market import ExternalAPIError, RateLimitedError, SymbolNotFoundError
 
 settings = get_settings()
 logging.basicConfig(
@@ -20,7 +22,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Market data backend", version="0.2.0")
+app = FastAPI(title="Market data backend", version="0.3.0")
 
 if settings.cors_origins:
     app.add_middleware(
@@ -31,6 +33,7 @@ if settings.cors_origins:
     )
 
 app.include_router(stocks.router)
+app.include_router(crypto.router)
 
 
 # ---- Error handling: map internal errors to clean HTTP responses ----
@@ -38,11 +41,13 @@ app.include_router(stocks.router)
 
 @app.exception_handler(SymbolNotFoundError)
 def _symbol_not_found(_: Request, exc: SymbolNotFoundError) -> JSONResponse:
+    """Unknown stock symbol or crypto pair -> HTTP 404."""
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(exc)})
 
 
 @app.exception_handler(RateLimitedError)
 def _rate_limited(_: Request, exc: RateLimitedError) -> JSONResponse:
+    """External API quota used up -> HTTP 503, telling the client to retry in 60 seconds."""
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={"detail": str(exc)},
@@ -52,11 +57,13 @@ def _rate_limited(_: Request, exc: RateLimitedError) -> JSONResponse:
 
 @app.exception_handler(ExternalAPIError)
 def _external_error(_: Request, exc: ExternalAPIError) -> JSONResponse:
+    """External API unreachable or returned garbage -> HTTP 502."""
     return JSONResponse(status_code=status.HTTP_502_BAD_GATEWAY, content={"detail": str(exc)})
 
 
 @app.exception_handler(SQLAlchemyError)
 def _db_error(_: Request, exc: SQLAlchemyError) -> JSONResponse:
+    """Any database failure -> HTTP 503, with details only in the server log."""
     logger.exception("Database error")
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": "Database unavailable"}

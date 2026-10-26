@@ -1,16 +1,19 @@
 # FastAPI backend for a stock / crypto market visualization app
 
 Backend for a personal full-stack webapp that visualizes stock and crypto
-markets. Free market data API keys are limited by daily requests, so the
-backend stores everything it fetches in its own PostgreSQL database and only
-calls the external API when stored data is stale.
+markets. Stocks come from Alpha Vantage and crypto from Binance's free public
+market data API. Free API keys are limited by daily requests, so the backend
+stores everything it fetches in its own PostgreSQL database and only calls the
+external API when stored data is stale.
 
 ## Features
 
 - **Database-first reads**: `GET /api/stocks/{symbol}` answers from PostgreSQL
   and refreshes from Alpha Vantage only after `CACHE_TTL_MINUTES`.
-- **Scheduled ingest**: `POST /api/ingest/{symbol}` (token-protected), called by a
-  GitHub Actions cron so data accumulates over time.
+- **Crypto**: `GET /api/crypto/{base}?quote=EUR` (e.g. BTC, ETH) from Binance, no API key needed.
+  Refreshed after `CRYPTO_CACHE_TTL_MINUTES` (default 5).
+- **Scheduled ingest**: `POST /api/ingest/{symbol}` and `POST /api/ingest/crypto/{base}`
+  (token-protected), called by a GitHub Actions cron so data accumulates over time.
 - **Intervals**: `1min`, `5min`, `15min`, `30min`, `60min`, `daily`. Timestamps stored and returned in UTC.
 - **Error handling**: unknown symbol → 404, provider rate limit → 503 with `Retry-After`,
   provider down → 502, database down → 503. The API key never appears in logs.
@@ -24,9 +27,11 @@ app/
   main.py              FastAPI app, error handlers, health checks
   config.py            settings from environment variables
   db.py, models.py     SQLAlchemy engine and tables
-  routers/stocks.py    HTTP endpoints
+  routers/             HTTP endpoints (stocks.py, crypto.py)
   services/
-    alphavantage.py    external API client
+    alphavantage.py    stock data client
+    binance.py         crypto data client
+    market.py          shared types (Bar, intervals, errors)
     prices.py          caching / ingest logic
 alembic/               database migrations
 tests/                 pytest suite (no network, SQLite)
@@ -55,6 +60,7 @@ API docs: http://localhost:8000/docs
 
 ```bash
 curl "http://localhost:8000/api/stocks/IBM?interval=5min&limit=100"
+curl "http://localhost:8000/api/crypto/BTC?quote=EUR&interval=daily&limit=30"
 ```
 
 ## Tests
@@ -71,6 +77,5 @@ and AWS (ECS Express Mode + RDS).
 
 ## Roadmap
 
-- Crypto data source
 - Frontend for visualization
 - Derived indicators (moving averages, volatility) computed from stored data

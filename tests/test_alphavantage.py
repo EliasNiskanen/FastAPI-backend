@@ -1,3 +1,5 @@
+"""Unit tests for the Alpha Vantage client: parsing, request parameters and error handling."""
+
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -5,8 +7,8 @@ import httpx
 import pytest
 
 from app.config import Settings
-from app.services.alphavantage import (
-    AlphaVantageClient,
+from app.services.alphavantage import AlphaVantageClient
+from app.services.market import (
     ExternalAPIError,
     RateLimitedError,
     SymbolNotFoundError,
@@ -15,11 +17,13 @@ from tests.conftest import SAMPLE_INTRADAY
 
 
 def make_client(handler) -> AlphaVantageClient:
+    """Build an AlphaVantageClient whose HTTP calls are answered by `handler` instead of the network."""
     settings = Settings(alphavantage_api_key="k", database_url="sqlite://")
     return AlphaVantageClient(settings, http=httpx.Client(transport=httpx.MockTransport(handler)))
 
 
 def test_parses_intraday_and_converts_to_utc():
+    """Parses intraday and converts to utc."""
     client = make_client(lambda req: httpx.Response(200, json=SAMPLE_INTRADAY))
     bars = client.fetch_bars("IBM", "5min")
 
@@ -32,9 +36,11 @@ def test_parses_intraday_and_converts_to_utc():
 
 
 def test_sends_expected_query_params():
+    """Sends expected query params."""
     seen = {}
 
     def handler(req: httpx.Request):
+        """Fake HTTP endpoint used by this test."""
         seen.update(req.url.params)
         return httpx.Response(200, json=SAMPLE_INTRADAY)
 
@@ -45,6 +51,7 @@ def test_sends_expected_query_params():
 
 
 def test_daily_series():
+    """Daily series."""
     payload = {
         "Meta Data": {"5. Time Zone": "US/Eastern"},
         "Time Series (Daily)": {
@@ -71,13 +78,17 @@ def test_daily_series():
     ],
 )
 def test_error_payloads(payload, error):
+    """Error payloads."""
     client = make_client(lambda req: httpx.Response(200, json=payload))
     with pytest.raises(error):
         client.fetch_bars("IBM", "5min")
 
 
 def test_network_failure_becomes_external_error():
+    """Network failure becomes external error."""
+
     def handler(req):
+        """Fake HTTP endpoint used by this test."""
         raise httpx.ConnectError("boom")
 
     with pytest.raises(ExternalAPIError):
@@ -85,5 +96,6 @@ def test_network_failure_becomes_external_error():
 
 
 def test_missing_api_key_is_rejected():
+    """Missing api key is rejected."""
     with pytest.raises(ExternalAPIError):
         AlphaVantageClient(Settings(alphavantage_api_key="", database_url="sqlite://"))
