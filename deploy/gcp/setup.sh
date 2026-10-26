@@ -79,12 +79,23 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com compute.goog
 
 # ---------------------------------------------------------------------------
 step "Secrets"
-if secret_exists database-url && [ -z "${RESET_SECRETS:-}" ]; then
-  echo "   database-url exists, keeping it (set RESET_SECRETS=1 to change)"
+if secret_exists database-url && [ -z "${RESET_SECRETS:-}${RESET_DATABASE_URL:-}" ]; then
+  echo "   database-url exists, keeping it (set RESET_DATABASE_URL=1 to change)"
 else
-  echo "   Paste the Neon connection string (Neon console -> Connect)."
+  echo "   Paste the Neon connection string (Neon console -> Connect) ONCE, then press Enter."
   echo "   It looks like postgresql://user:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
-  read -rsp "   DATABASE_URL: " DB_URL; echo
+  echo "   (Nothing is shown while you paste; that's normal.)"
+  while true; do
+    read -rsp "   DATABASE_URL: " DB_URL; echo
+    DB_URL="$(printf '%s' "$DB_URL" | tr -d '[:space:]')" # drop stray spaces/newlines
+    # Exactly one "://" means it was pasted once; two means it was pasted twice.
+    schemes=$(grep -o '://' <<<"$DB_URL" | wc -l)
+    if [[ "$DB_URL" =~ ^postgres(ql)?:// ]] && [ "$schemes" -eq 1 ] && [[ "$DB_URL" == *@* ]]; then
+      break
+    fi
+    echo "   That doesn't look like a single postgresql://... connection string"
+    echo "   (pasted twice, or something missing). Please paste it again."
+  done
   # SQLAlchemy needs the driver name in the scheme.
   DB_URL="${DB_URL/#postgresql:\/\//postgresql+psycopg://}"
   DB_URL="${DB_URL/#postgres:\/\//postgresql+psycopg://}"
@@ -94,8 +105,8 @@ else
   put_secret database-url "$DB_URL"
 fi
 
-if secret_exists alphavantage-api-key && [ -z "${RESET_SECRETS:-}" ]; then
-  echo "   alphavantage-api-key exists, keeping it"
+if secret_exists alphavantage-api-key && [ -z "${RESET_SECRETS:-}${RESET_ALPHAVANTAGE_KEY:-}" ]; then
+  echo "   alphavantage-api-key exists, keeping it (set RESET_ALPHAVANTAGE_KEY=1 to change)"
 else
   read -rsp "   ALPHAVANTAGE_API_KEY: " AV_KEY; echo
   put_secret alphavantage-api-key "$AV_KEY"
