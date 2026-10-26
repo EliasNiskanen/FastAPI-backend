@@ -5,7 +5,6 @@ app/services/prices.py.
 """
 
 import logging
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -13,43 +12,29 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from app.config import Settings
+from app.services.market import (
+    SUPPORTED_INTERVALS,
+    Bar,
+    ExternalAPIError,
+    RateLimitedError,
+    SymbolNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
-INTRADAY_INTERVALS = ("1min", "5min", "15min", "30min", "60min")
-SUPPORTED_INTERVALS = (*INTRADAY_INTERVALS, "daily")
-
-
-@dataclass(frozen=True)
-class Bar:
-    ts: datetime  # UTC
-    open: Decimal
-    high: Decimal
-    low: Decimal
-    close: Decimal
-    volume: int
-
-
-class ExternalAPIError(Exception):
-    """Base error for problems talking to the external market data API."""
-
-
-class SymbolNotFoundError(ExternalAPIError):
-    pass
-
-
-class RateLimitedError(ExternalAPIError):
-    pass
-
 
 class AlphaVantageClient:
+    """Fetches stock candles from Alpha Vantage. Needs ALPHAVANTAGE_API_KEY."""
+
     def __init__(self, settings: Settings, http: httpx.Client | None = None):
+        """Create the client. `http` can be replaced in tests with a fake transport."""
         if not settings.alphavantage_api_key:
             raise ExternalAPIError("ALPHAVANTAGE_API_KEY is not configured")
         self._settings = settings
         self._http = http or httpx.Client(timeout=settings.http_timeout_seconds)
 
     def fetch_bars(self, symbol: str, interval: str) -> list[Bar]:
+        """Download the latest candles for a stock symbol and return them oldest first."""
         if interval not in SUPPORTED_INTERVALS:
             raise ValueError(f"Unsupported interval: {interval}")
 
@@ -73,6 +58,11 @@ class AlphaVantageClient:
 
     @staticmethod
     def _parse(symbol: str, interval: str, data: dict) -> list[Bar]:
+        """Turn an Alpha Vantage JSON response into Bars, or raise the matching error.
+
+        Alpha Vantage reports errors with HTTP 200 and a special key in the body,
+        so errors are detected from the JSON content.
+        """
         if "Error Message" in data:
             raise SymbolNotFoundError(f"Unknown symbol: {symbol}")
         # Alpha Vantage answers HTTP 200 with a "Note"/"Information" text when
@@ -106,7 +96,7 @@ class AlphaVantageClient:
                     high=Decimal(values["2. high"]),
                     low=Decimal(values["3. low"]),
                     close=Decimal(values["4. close"]),
-                    volume=int(values["5. volume"]),
+                    volume=Decimal(values["5. volume"]),
                 )
             )
         bars.sort(key=lambda b: b.ts)
