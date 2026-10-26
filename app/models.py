@@ -1,3 +1,5 @@
+"""Database tables (SQLAlchemy ORM models). Change these, then create an Alembic migration."""
+
 from datetime import datetime
 from decimal import Decimal
 

@@ -26,16 +26,19 @@ _FIELDS = ("open", "high", "low", "close", "volume")
 
 
 def normalize_symbol(symbol: str) -> str:
+    """Clean up user input: ' btc ' -> 'BTC'."""
     return symbol.strip().upper()
 
 
 def _utc(ts: datetime) -> datetime:
+    """Make a timestamp timezone-aware UTC (SQLite in tests returns naive datetimes)."""
     return ts if ts.tzinfo else ts.replace(tzinfo=UTC)  # SQLite drops tzinfo
 
 
 def is_stale(
     session: Session, asset_class: AssetClass, symbol: str, interval: str, ttl_minutes: int
 ) -> bool:
+    """Return True if this series was never fetched or was fetched longer ago than ttl_minutes."""
     log = session.get(FetchLog, (asset_class, symbol, interval))
     if log is None:
         return True
@@ -102,6 +105,11 @@ def get_bars(
     ttl_minutes: int,
     limit: int,
 ) -> list[PriceBar]:
+    """Return the latest `limit` candles from the database, oldest first.
+
+    If the stored data is stale, fetch fresh data from the external API first.
+    This is what keeps us inside the free API quotas.
+    """
     if is_stale(session, asset_class, symbol, interval, ttl_minutes):
         ingest(session, fetch, asset_class, symbol, interval)
 

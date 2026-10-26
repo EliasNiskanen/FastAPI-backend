@@ -38,7 +38,10 @@ MAX_KLINES = 1000  # Binance maximum per request
 
 
 class BinanceClient:
+    """Fetches crypto candles (klines) from Binance. No API key needed."""
+
     def __init__(self, settings: Settings, http: httpx.Client | None = None):
+        """Create the client. `http` can be replaced in tests with a fake transport."""
         self._settings = settings
         self._http = http or httpx.Client(timeout=settings.http_timeout_seconds)
 
@@ -76,6 +79,10 @@ class BinanceClient:
 
     @staticmethod
     def _parse(data: object) -> list[Bar]:
+        """Turn Binance kline arrays into Bars.
+
+        Each row is [open_time_ms, open, high, low, close, volume, close_time_ms, ...].
+        """
         if not isinstance(data, list):
             raise ExternalAPIError("Unexpected response format from crypto data provider")
         try:

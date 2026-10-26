@@ -1,3 +1,5 @@
+"""HTTP endpoints for crypto prices (Binance), e.g. GET /api/crypto/BTC?quote=EUR."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -33,6 +35,7 @@ def get_crypto_fetcher(settings: Annotated[Settings, Depends(get_settings)]) -> 
 
 
 def _pair(base: str, quote: str | None, settings: Settings) -> str:
+    """Build the Binance trading pair from base and quote currency, e.g. ('btc', 'eur') -> 'BTCEUR'."""
     return prices.normalize_symbol(base) + prices.normalize_symbol(
         quote or settings.default_crypto_quote
     )

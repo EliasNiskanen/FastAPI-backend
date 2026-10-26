@@ -1,3 +1,5 @@
+"""HTTP endpoints for stock prices (Alpha Vantage), e.g. GET /api/stocks/IBM."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path
