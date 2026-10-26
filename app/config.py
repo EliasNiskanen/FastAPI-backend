@@ -22,8 +22,14 @@ class Settings(BaseSettings):
     alphavantage_base_url: str = "https://www.alphavantage.co/query"
     http_timeout_seconds: float = 15.0
 
+    # Binance public market data (free, no API key)
+    binance_base_url: str = "https://data-api.binance.vision"
+    default_crypto_quote: str = "USDT"
+
     # How long stored data counts as fresh before we spend an API request again.
     cache_ttl_minutes: int = Field(default=60, ge=0)
+    # Binance has no daily quota, so crypto can refresh much more often.
+    crypto_cache_ttl_minutes: int = Field(default=5, ge=0)
 
     # Comma separated list, e.g. "http://localhost:5173,https://myapp.example.com"
     cors_origins: Annotated[list[str], NoDecode] = []

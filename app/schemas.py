@@ -2,6 +2,8 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from app.services.market import AssetClass
+
 
 class PriceBarOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -11,7 +13,7 @@ class PriceBarOut(BaseModel):
     high: float
     low: float
     close: float
-    volume: int
+    volume: float
 
     @field_validator("ts")
     @classmethod
@@ -21,12 +23,14 @@ class PriceBarOut(BaseModel):
 
 
 class PriceSeriesOut(BaseModel):
+    asset_class: AssetClass
     symbol: str
     interval: str
     bars: list[PriceBarOut]
 
 
 class IngestResult(BaseModel):
+    asset_class: AssetClass
     symbol: str
     interval: str
     new_bars: int

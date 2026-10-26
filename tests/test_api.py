@@ -1,5 +1,5 @@
 from app.config import get_settings
-from app.services.alphavantage import RateLimitedError, SymbolNotFoundError
+from app.services.market import RateLimitedError, SymbolNotFoundError
 
 
 def test_health(client):
@@ -62,7 +62,12 @@ def test_rate_limit_is_503_with_retry_after(client, fake_fetcher):
 def test_ingest_without_token_configured(client, fake_fetcher):
     r = client.post("/api/ingest/IBM")
     assert r.status_code == 200
-    assert r.json() == {"symbol": "IBM", "interval": "5min", "new_bars": 2}
+    assert r.json() == {
+        "asset_class": "stock",
+        "symbol": "IBM",
+        "interval": "5min",
+        "new_bars": 2,
+    }
     assert client.post("/api/ingest/IBM").json()["new_bars"] == 0
 
 
