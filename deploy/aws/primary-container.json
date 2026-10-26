@@ -1,0 +1,17 @@
+{
+  "image": "__IMAGE__",
+  "containerPort": 8000,
+  "awsLogsConfiguration": {
+    "logGroup": "/ecs/market-backend",
+    "logStreamPrefix": "ecs"
+  },
+  "environment": [
+    { "name": "CORS_ORIGINS", "value": "__CORS_ORIGINS__" },
+    { "name": "LOG_LEVEL", "value": "INFO" }
+  ],
+  "secrets": [
+    { "name": "DATABASE_URL", "valueFrom": "/market-backend/database-url" },
+    { "name": "ALPHAVANTAGE_API_KEY", "valueFrom": "/market-backend/alphavantage-api-key" },
+    { "name": "INGEST_TOKEN", "valueFrom": "/market-backend/ingest-token" }
+  ]
+}

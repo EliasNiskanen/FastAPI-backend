@@ -1,0 +1,45 @@
+# Deploy to AWS (ECR + ECS Express Mode). Run manually from the Actions tab.
+# One-time setup (ECR repo, RDS, SSM parameters, IAM roles, first service
+# creation, GitHub OIDC role) is in docs/DEPLOY.md.
+#
+# Repository variables:
+#   AWS_REGION, AWS_ROLE_ARN, ECR_REPOSITORY, ECS_SERVICE_ARN, CORS_ORIGINS
+name: Deploy to AWS (ECS Express Mode)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # keyless auth via GitHub OIDC
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Update ECS Express service
+        run: |
+          # The full container definition is sent each time, so env vars and
+          # secrets stay in sync with deploy/aws/primary-container.json.
+          sed -e "s#__IMAGE__#${IMAGE}#" -e "s#__CORS_ORIGINS__#${{ vars.CORS_ORIGINS }}#" \
+            deploy/aws/primary-container.json > container.json
+          aws ecs update-express-gateway-service \
+            --service-arn "${{ vars.ECS_SERVICE_ARN }}" \
+            --primary-container file://container.json \
+            --health-check-path /health
