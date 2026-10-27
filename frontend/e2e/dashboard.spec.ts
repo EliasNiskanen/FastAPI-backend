@@ -72,6 +72,13 @@ test('the time range buttons change the candles', async ({ page }) => {
   await expect(dialog(page).getByText('over all available history')).toBeVisible()
 })
 
+test('saved daily candles stand in when intraday data is unavailable', async ({ page }) => {
+  await page.goto('/?a=stock:MSFT')
+  await dialog(page).getByRole('radio', { name: '1D' }).click()
+  await expect(dialog(page).getByText(/closest saved prices: daily candles/)).toBeVisible()
+  await expect(dialog(page).getByText(/^since /)).toBeVisible()
+})
+
 test('search finds a stock and opens its chart', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('combobox').first().fill('apple')

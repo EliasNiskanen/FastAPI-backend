@@ -178,8 +178,10 @@ source does not touch them.
 
 **Stale data beats an error page.** If a provider is rate limited or down
 when stored data needs a refresh, the backend serves what it has with
-`stale: true`, and the frontend says so. Only data that was never fetched
-produces an error.
+`stale: true`, and the frontend says so. If nothing is stored for the
+requested candle size, it serves the closest one it has (daily candles
+instead of 5-minute ones, say) and reports which, so the chart can label it
+honestly. Only an asset with nothing stored at all produces an error.
 
 **Atomic upserts, found by testing in the browser.** The dashboard's panels
 load in parallel, so the first visit to a new asset sent several requests that

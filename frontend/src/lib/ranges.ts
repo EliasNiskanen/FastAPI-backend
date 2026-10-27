@@ -1,9 +1,9 @@
 /**
  * Chart time ranges (15 min, 1 day, 1 month, 1 year, all time) and which
  * candles each one uses. Stocks and crypto differ because of their data
- * sources: Binance serves 1000 candles of any size for free, while the free
- * Alpha Vantage key returns ~100 intraday or daily candles per request, so
- * stocks switch to weekly/monthly candles sooner.
+ * sources: Binance serves 1000 candles of any size for free, while stock
+ * requests are rationed by a daily quota, so stocks switch to
+ * weekly/monthly candles sooner.
  */
 import type { Interval } from '../api/hooks'
 import type { Asset } from './asset'
