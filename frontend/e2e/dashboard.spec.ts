@@ -50,6 +50,8 @@ test('the Stocks tab explains that stock prices will be back', async ({ page }) 
   await page.getByRole('button', { name: 'Browse crypto' }).click()
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'crypto')
   await expect(page).toHaveURL(/m=crypto/)
+  // The pause banner is only on the All tab.
+  await expect(page.getByText('Stock prices are paused for now.', { exact: false })).toHaveCount(0)
 })
 
 test('the theme toggle switches light and dark and is remembered', async ({ page }) => {
