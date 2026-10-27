@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/archivo/wdth.css';
+
+/*
+ * Redline design tokens.
+ * Graphite surfaces, warm white ink, one signal red used sparingly
+ * (brand mark, selection, focus). Gains and losses have their own colours
+ * and always come with an arrow, so meaning never rests on colour alone.
+ */
+@theme {
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ground: #1e1f22; /* page */
+  --color-panel: #25262a; /* instrument panels */
+  --color-raised: #2e2f34; /* inputs, hover, chips */
+  --color-line: #36373d; /* hairlines between panels */
+  --color-ink: #eeece7; /* primary text */
+  --color-ink-2: #a9a8ae; /* secondary text */
+  --color-ink-3: #93939b; /* tertiary text, axis labels */
+  --color-signal: #e8344a; /* brand red: selection, focus, logo */
+  --color-signal-deep: #8f1424;
+  --color-up: #4cc98f;
+  --color-down: #ff6b6b;
+
+  /* Comparison chart series: validated for colour-vision deficiency on --color-panel. */
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+  --color-series-4: #c98500;
+  --color-series-5: #d55181;
+
+  --font-stretch-wide: 125%;
+  --font-stretch-condensed: 85%;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-variation-settings: normal;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-signal-deep);
+    color: var(--color-ink);
+  }
+}
+
+@utility font-wide {
+  font-stretch: 125%;
+}
+
+@utility font-condensed {
+  font-stretch: 85%;
+}
+
+@utility nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

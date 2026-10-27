@@ -134,13 +134,19 @@ echo "   if the build fails with a permission error, wait and run the script aga
 
 # ---------------------------------------------------------------------------
 step "Building and deploying to Cloud Run (takes a few minutes)"
+# Environment variables are only changed when given, so a redeploy keeps the
+# CORS origin that deploy/gcp/frontend.sh set for the frontend.
+env_args=()
+if [ -n "${CORS_ORIGINS:-}" ]; then
+  env_args+=(--update-env-vars "^|^CORS_ORIGINS=${CORS_ORIGINS}")
+fi
 gcloud run deploy "$SERVICE" \
   --source . \
   --region "$REGION" \
   --service-account "$RUN_SA" \
   --allow-unauthenticated \
   --set-secrets "DATABASE_URL=database-url:latest,ALPHAVANTAGE_API_KEY=alphavantage-api-key:latest,INGEST_TOKEN=ingest-token:latest" \
-  --set-env-vars "^|^CORS_ORIGINS=${CORS_ORIGINS:-}" \
+  "${env_args[@]}" \
   --min-instances 0 \
   --max-instances 2 \
   --quiet

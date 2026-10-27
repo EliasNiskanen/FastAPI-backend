@@ -53,14 +53,15 @@ def read_crypto_prices(
 ) -> PriceSeriesOut:
     """Crypto candles (e.g. BTC in USDT) from our database, refreshed from Binance when stale."""
     pair = _pair(base, quote, settings)
-    bars = prices.get_bars(
+    result = prices.get_bars(
         session, fetch, "crypto", pair, interval, settings.crypto_cache_ttl_minutes, limit
     )
     return PriceSeriesOut(
         asset_class="crypto",
         symbol=pair,
         interval=interval,
-        bars=[PriceBarOut.model_validate(b) for b in bars],
+        stale=result.stale,
+        bars=[PriceBarOut.model_validate(b) for b in result.bars],
     )
 
 

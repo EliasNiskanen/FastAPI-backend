@@ -2,8 +2,9 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import BigInteger, DateTime, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, DateTime, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -45,3 +46,18 @@ class FetchLog(Base):
     symbol: Mapped[str] = mapped_column(String(32), primary_key=True)
     interval: Mapped[str] = mapped_column(String(16), primary_key=True)
     last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ApiCache(Base):
+    """Cached JSON responses from external APIs that are not price candles.
+
+    Used for market-wide data such as top movers, 24h crypto tickers and the
+    stock symbol list used by search. Each row is one cache entry, refreshed
+    when it is older than its time-to-live.
+    """
+
+    __tablename__ = "api_cache"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[Any] = mapped_column(JSON)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
