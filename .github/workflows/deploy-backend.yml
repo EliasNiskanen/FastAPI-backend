@@ -49,13 +49,14 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
 
       - name: Build and deploy to Cloud Run
+        # Public access was granted once by deploy/gcp/setup.sh and is kept on
+        # redeploys, so the deployer does not need permission to change IAM policy.
         run: |
           gcloud run deploy "$SERVICE" \
             --project "$PROJECT_ID" \
             --source . \
             --region "$REGION" \
             --service-account "$RUNTIME_SA" \
-            --allow-unauthenticated \
             --set-secrets "DATABASE_URL=database-url:latest,ALPHAVANTAGE_API_KEY=alphavantage-api-key:latest,INGEST_TOKEN=ingest-token:latest" \
             --update-env-vars "^|^CORS_ORIGINS=${CORS_ORIGINS}" \
             --min-instances 0 \

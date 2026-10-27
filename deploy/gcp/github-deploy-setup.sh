@@ -54,6 +54,12 @@ done
 retry gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" \
   --member="serviceAccount:$DEPLOYER" --role=roles/iam.serviceAccountUser
 echo "   may act as $RUN_SA"
+# `--source` deploys are built by Cloud Build, which runs as the Compute Engine
+# default service account; starting that build also needs permission to act as it.
+BUILD_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+retry gcloud iam service-accounts add-iam-policy-binding "$BUILD_SA" \
+  --member="serviceAccount:$DEPLOYER" --role=roles/iam.serviceAccountUser
+echo "   may start builds as $BUILD_SA"
 
 step "Workload identity pool for GitHub"
 if ! gcloud iam workload-identity-pools describe "$POOL" --location=global >/dev/null 2>&1; then
