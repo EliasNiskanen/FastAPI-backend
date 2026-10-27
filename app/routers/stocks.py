@@ -34,14 +34,15 @@ def read_prices(
 ) -> PriceSeriesOut:
     """Stock price bars from our own database, refreshed from Alpha Vantage only when stale."""
     sym = prices.normalize_symbol(symbol)
-    bars = prices.get_bars(
+    result = prices.get_bars(
         session, fetch, "stock", sym, interval, settings.cache_ttl_minutes, limit
     )
     return PriceSeriesOut(
         asset_class="stock",
         symbol=sym,
         interval=interval,
-        bars=[PriceBarOut.model_validate(b) for b in bars],
+        stale=result.stale,
+        bars=[PriceBarOut.model_validate(b) for b in result.bars],
     )
 
 

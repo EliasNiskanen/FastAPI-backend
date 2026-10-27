@@ -20,6 +20,8 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
     env:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/stocks
+      # Enables the concurrency test that needs real PostgreSQL.
+      TEST_POSTGRES_URL: postgresql+psycopg://postgres:postgres@localhost:5432/stocks
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -29,15 +31,68 @@ jobs:
       - run: poetry install
       - run: poetry run ruff check .
       - run: poetry run ruff format --check .
-      - run: poetry run pytest -q
+      # Migrations first: they must build the schema on an empty database
+      # (the PostgreSQL tests then run against the migrated schema).
       - name: Migrations apply cleanly to real PostgreSQL
         run: |
           poetry run alembic upgrade head
           poetry run alembic check
+      - run: poetry run pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    # Playwright's system dependencies are published for Ubuntu 24.04.
+    runs-on: ubuntu-24.04
+    needs: frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results
 
   docker:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, frontend]
     steps:
       - uses: actions/checkout@v7
       - run: docker build -t fastapi-backend:ci .
+      - run: docker build -t market-frontend:ci frontend
+      - name: Frontend image serves the app and its runtime config
+        run: |
+          docker run -d --name web -p 8080:8080 -e API_URL=https://api.example.test market-frontend:ci
+          sleep 2
+          curl -fsS localhost:8080/config.js | grep -q 'apiUrl: "https://api.example.test"'
+          curl -fsS localhost:8080/ | grep -q '<div id="root">'
+          curl -fsS localhost:8080/some/deep/link | grep -q '<div id="root">'
+          docker logs web
