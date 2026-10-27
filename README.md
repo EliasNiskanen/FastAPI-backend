@@ -230,7 +230,7 @@ as a second Cloud Run service and allows its address in the backend's CORS
 settings.
 
 [docs/DEPLOY.md](docs/DEPLOY.md) also covers Cloud SQL, deploys from GitHub
-Actions with keyless Workload Identity Federation, and AWS.
+Actions with keyless Workload Identity Federation, the Cloudflare frontend, and AWS.
 
 ## Project layout
 
