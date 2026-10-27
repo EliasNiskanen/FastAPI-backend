@@ -396,7 +396,7 @@ export interface operations {
     read_prices_api_stocks__symbol__get: {
         parameters: {
             query?: {
-                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily";
+                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily" | "weekly" | "monthly";
                 /** @description How many latest bars to return */
                 limit?: number;
             };
@@ -431,7 +431,7 @@ export interface operations {
     ingest_prices_api_ingest__symbol__post: {
         parameters: {
             query?: {
-                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily";
+                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily" | "weekly" | "monthly";
             };
             header?: {
                 "x-ingest-token"?: string | null;
@@ -468,7 +468,7 @@ export interface operations {
             query?: {
                 /** @description Quote currency, e.g. USDT or EUR. Defaults to DEFAULT_CRYPTO_QUOTE. */
                 quote?: string | null;
-                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily";
+                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily" | "weekly" | "monthly";
                 /** @description How many latest bars to return */
                 limit?: number;
             };
@@ -505,7 +505,7 @@ export interface operations {
             query?: {
                 /** @description Quote currency, e.g. USDT or EUR. Defaults to DEFAULT_CRYPTO_QUOTE. */
                 quote?: string | null;
-                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily";
+                interval?: "1min" | "5min" | "15min" | "30min" | "60min" | "daily" | "weekly" | "monthly";
             };
             header?: {
                 "x-ingest-token"?: string | null;

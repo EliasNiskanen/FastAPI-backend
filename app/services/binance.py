@@ -30,6 +30,8 @@ BINANCE_INTERVALS = {
     "30min": "30m",
     "60min": "1h",
     "daily": "1d",
+    "weekly": "1w",
+    "monthly": "1M",
 }
 assert set(BINANCE_INTERVALS) == set(SUPPORTED_INTERVALS)
 

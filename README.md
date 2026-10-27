@@ -1,17 +1,81 @@
-# Redline: a full-stack stock and crypto dashboard
+<div align="center">
+
+<img src="frontend/public/favicon.svg" width="64" alt="" />
+
+# BullBearScope
+
+**Watch the bulls and the bears.** A full-stack market tracker for US stocks and crypto.
+
+[**bullbearscope.com**](https://bullbearscope.com) ·
+[API docs](https://market-backend-u7emkto2ja-lz.a.run.app/docs) ·
+[How it's built](#architecture)
 
 [![CI](https://github.com/EliasNiskanen/FastAPI-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/EliasNiskanen/FastAPI-backend/actions/workflows/ci.yml)
+![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![React 19](https://img.shields.io/badge/React_19-20232A?logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Cloud Run](https://img.shields.io/badge/Cloud_Run-4285F4?logo=googlecloud&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?logo=cloudflare&logoColor=white)
 
-Redline lets you search US stocks and crypto, see the day's biggest gainers and
-losers, and study prices on interactive candlestick and comparison charts. A
-**FastAPI** backend collects price data from public APIs into **PostgreSQL**;
-a **React + TypeScript** frontend visualizes it. Both run on **Google Cloud Run**.
+</div>
 
-**Live API docs:** https://market-backend-u7emkto2ja-lz.a.run.app/docs
+![BullBearScope front page in All mode: a live headline about the day's biggest move, search, a ticker ribbon and lists of rising stocks and coins](docs/images/all-dark.png)
 
-![Redline front page: a live headline about the day's biggest move, search, and rising and falling assets](docs/images/home.png)
+BullBearScope shows the day's biggest gainers and losers in US stocks and
+crypto, lets you search any listed company or coin, and opens a chart for it in
+a popup above the page, with five time ranges and side-by-side comparison of
+two assets. A **FastAPI** backend collects prices from public APIs into
+**PostgreSQL**; a **React + TypeScript** frontend presents them. Everything
+deploys automatically when a pull request is merged.
 
-![Redline dashboard: asset overview, candlestick chart, crypto market table, watchlist with sparklines and a performance comparison](docs/images/dashboard.png)
+## Features
+
+- **Three markets, three looks.** *All* (the front page) mixes stocks and
+  crypto in graphite and red. *Crypto* switches to gold and blue, *Stocks* to
+  blue and light grey. Each has a light and a dark theme, and every colour pair
+  was checked for WCAG contrast.
+- **A front page that tells the day's story.** The headline is written from
+  live data ("NVIDIA Corporation is down 8.9% today."), a ticker ribbon drifts
+  past, and the market lists fade in as you scroll.
+- **Charts in a floating popup.** Click any row, ribbon chip or search result
+  and a candlestick chart opens on top of the page. The URL updates
+  (`?a=crypto:BTC-USDT`), so a chart can be bookmarked or shared, and the back
+  button closes it.
+- **Time ranges: 15 min, 1 day, 1 month, 1 year, all time.** Each range picks
+  the right candle size per market (1-minute candles for 15 minutes, monthly
+  candles for all time).
+- **Compare two assets.** Pick a second stock or coin and both are drawn as
+  percent change from the start of the range on one axis, so a $0.20 coin and a
+  $500 stock are directly comparable.
+- **Search** across 10,000+ US stocks and ETFs and every coin on Binance, with
+  keyboard navigation (`/` focuses it).
+- **Watchlist** with sparklines, saved in the browser.
+- **Accessible and responsive.** Native `<dialog>` with focus handling,
+  ▲/▼ next to every gain/loss colour, keyboard-operable controls, motion turned
+  off for `prefers-reduced-motion`, and no sideways scrolling on phones.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/chart-popup.png" alt="Bitcoin candlestick chart in a popup, with time range and currency controls and a stats row"></td>
+    <td width="50%"><img src="docs/images/compare.png" alt="NVIDIA and Microsoft compared as percent change over a year in light mode, with a hover tooltip"></td>
+  </tr>
+  <tr>
+    <td><sub>Chart popup in Crypto mode (dark)</sub></td>
+    <td><sub>Comparing two stocks over a year (light)</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/crypto-light.png" alt="Crypto mode in light theme: gold and blue, rising, falling and major coins"></td>
+    <td><img src="docs/images/stock-dark.png" alt="Stocks mode in dark theme: blue accents, rising and falling stocks and the watchlist"></td>
+  </tr>
+  <tr>
+    <td><sub>Crypto mode (light)</sub></td>
+    <td><sub>Stocks mode (dark)</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/images/mobile.png" width="300" alt="BullBearScope on a phone"></p>
 
 <sub>Screenshots use the local demo data server (`dev/fake_market_api.py`).</sub>
 
@@ -31,11 +95,10 @@ has the app open.
 
 ```mermaid
 flowchart LR
-    U[Browser] -->|static files| WEB
+    U[Browser] -->|static files| WEB[Cloudflare Workers<br/>bullbearscope.com]
     U -->|GET /api/...| API
 
     subgraph GCP[Google Cloud Run, europe-north1]
-        WEB[React app on nginx]
         API[FastAPI app]
     end
 
@@ -74,18 +137,21 @@ Request flow for `GET /api/crypto/BTC?quote=EUR`:
 | **Poetry** | Dependency management with a lock file for reproducible builds. |
 | **Docker** | Multi-stage image: dependencies are resolved with Poetry in a build stage, and the runtime stage contains only the virtualenv and code, running as a non-root user. **Docker Compose** runs the API with PostgreSQL locally. |
 | **GitHub Actions** | CI on every push and pull request: backend lint, tests and migrations against a real PostgreSQL service container (`alembic check` catches model/migration drift); frontend lint, type check, unit tests and Playwright tests; both Docker images built, and the frontend image started and smoke-tested. A second workflow runs the scheduled data ingest. |
-| **React 19 + TypeScript** | The frontend (`frontend/`). Strict TypeScript; components for search, movers, the candlestick chart, watchlist and comparison chart. |
+| **React 19 + TypeScript** | The frontend (`frontend/`). Strict TypeScript. UI state that should survive a reload or be shareable (market mode, open chart) lives in the URL; the theme and watchlist live in `localStorage`, read through `useSyncExternalStore`. |
 | **Vite** | Dev server and build. In development it proxies `/api` to the backend, so no CORS setup is needed locally. |
 | **TanStack Query** | All data fetching: caching, request de-duplication (several panels showing the same asset share one request), keeping the previous chart visible while a new interval loads, and no retries on 404/503 so the provider quota isn't wasted. |
 | **openapi-typescript** | Generates TypeScript types from the backend's OpenAPI schema, so a change in the API's response shape becomes a compile error in the frontend. |
 | **TradingView Lightweight Charts** | Candlestick and volume chart with crosshair readout. |
-| **Custom SVG charts** | The performance comparison (every asset rebased to percent change on one axis, with direct labels, a hover tooltip and a table view), sparklines and the hero chart. |
-| **Tailwind CSS 4** | Styling from a small set of design tokens (graphite surfaces, one signal red, separate gain/loss colours that always come with ▲/▼). |
-| **Vitest + Testing Library** | Unit tests for formatting, asset keys, series maths, colour assignment, the watchlist hook, the API client and the search combobox. |
-| **Playwright** | End-to-end tests on desktop and mobile viewports against a mocked API: headline, movers, search, watchlist persistence, error states and no horizontal scrolling. |
+| **Custom SVG charts** | The comparison chart (both assets rebased to percent change on one axis, with a legend, labelled line ends and a hover tooltip) and the sparklines. |
+| **Tailwind CSS 4** | Styling from design tokens. Each market mode and theme is one block of CSS variables on `<html data-mode data-theme>`, so switching recolours the whole page, the canvas chart included, without re-rendering components. |
+| **Modern CSS** | Native `<dialog>` with `@starting-style` enter/exit transitions and a blurred backdrop, drifting gradient orbs, a CSS marquee and scroll reveals with `IntersectionObserver`. All motion stops under `prefers-reduced-motion`. |
+| **Vitest + Testing Library** | Unit tests for formatting, asset keys, series maths, time ranges, mode handling, chart axis helpers, the watchlist hook, the API client and the search combobox. |
+| **Playwright** | End-to-end tests on desktop and mobile viewports against a mocked API: mode switching, theme persistence, opening and closing the chart popup, every time range, search, comparison, watchlist persistence, error states and no horizontal scrolling. |
 | **Oxlint + Prettier** | Linting and formatting for the frontend, enforced in CI. |
-| **nginx** | Serves the built frontend in its container. The backend address is written into `config.js` at container start, so one image works in every environment. |
-| **Google Cloud Run** | Production hosting for both services. Serverless containers that scale to zero, so the app costs nothing while idle. Deployed from source with **Cloud Build** and **Artifact Registry** by two re-runnable scripts. |
+| **Cloudflare Workers (static assets)** | Hosts the frontend at bullbearscope.com on Cloudflare's edge network. Cloudflare builds and deploys `frontend/` on every push to `main` (`wrangler.jsonc`, SPA routing, security headers in `public/_headers`). |
+| **Google Cloud Run** | Hosts the backend. A serverless container that scales to zero, so it costs nothing while idle. Built with **Cloud Build** and stored in **Artifact Registry**. |
+| **Continuous deployment** | After CI passes on `main`, a GitHub Actions workflow deploys the backend to Cloud Run. It signs in with **Workload Identity Federation** (OIDC), so no long-lived Google Cloud key is stored in GitHub. |
+| **nginx** | Alternative frontend container (also Cloud Run). The backend address is written into `config.js` at container start, so one image works in every environment. |
 | **Google Secret Manager** | Holds the database URL, API key and ingest token. The app runs as a dedicated service account that may only read those secrets (least privilege). |
 | **AWS (ECS Express Mode, ECR, RDS, SSM)** | An alternative deployment path, documented in [docs/DEPLOY.md](docs/DEPLOY.md), with GitHub OIDC so no long-lived cloud keys are stored in GitHub. Prepared but not in use. |
 
@@ -127,6 +193,20 @@ movers, the symbol list) lives in an `api_cache` table with its own TTL. One
 Binance response feeds the movers, the market table and crypto search, and
 stock movers refresh every six hours to respect the free Alpha Vantage quota.
 
+**Charts on demand, not on arrival.** The front page answers "what moved
+today?" with lists, and a chart opens only for the asset you pick. That keeps
+the first load to a handful of cached, market-wide requests, which matters with
+a rate-limited stock API, and puts the chart where your attention already is.
+
+**The URL is the state.** The market mode (`?m=crypto`) and the open chart
+(`?a=stock:AAPL`) are query parameters. Opening a chart pushes a history entry,
+so the back button closes it on phones, and any view can be shared as a link.
+
+**Comparison by percent, on one axis.** Two prices on two y-axes invite false
+conclusions about which moved more. Rebasing both to 0% at the start of the
+range answers the actual question. The two series colours were picked and
+validated for colour-vision deficiencies, and every value is also labelled.
+
 **Clear error mapping.** Unknown symbol gives 404, provider rate limit gives
 503 with `Retry-After`, provider unreachable gives 502, and database
 unavailable gives 503. Clients can tell "you asked for something wrong" apart
@@ -155,7 +235,7 @@ up in logs.
 | GET | `/health` | Liveness check |
 | GET | `/health/ready` | Readiness check (database reachable) |
 
-Intervals: `1min`, `5min`, `15min`, `30min`, `60min`, `daily`.
+Intervals: `1min`, `5min`, `15min`, `30min`, `60min`, `daily`, `weekly`, `monthly`.
 
 Example response (values shortened for illustration):
 
@@ -177,8 +257,9 @@ Example response (values shortened for illustration):
   the provider), stale fallbacks, upserting an open candle, movers filtering,
   search ranking, validation, status codes, token protection, and a
   concurrency test on real PostgreSQL.
-- **Frontend (Vitest):** formatting, asset keys, series maths, stable colour
-  assignment, the watchlist hook, the API client and the search combobox.
+- **Frontend (Vitest):** formatting, asset keys, series maths, time ranges,
+  market modes, chart axis helpers, the watchlist hook, the API client and the
+  search combobox.
 - **End to end (Playwright):** the real app in Chromium at desktop and mobile
   sizes, with the API mocked by fixtures.
 - **CI** also applies all migrations to PostgreSQL 16, builds both Docker
@@ -220,17 +301,20 @@ The frontend can also run against the deployed backend:
 
 ## Deployment
 
-Production runs on Google Cloud Run (`europe-north1`) with a Neon PostgreSQL
-database. [`deploy/gcp/setup.sh`](deploy/gcp/setup.sh) is a re-runnable script
-that enables the needed APIs, stores secrets, creates a least-privilege service
-account, builds and deploys the container, and checks `/health/ready`.
+Merging a pull request into `main` ships it:
 
-[`deploy/gcp/frontend.sh`](deploy/gcp/frontend.sh) then deploys the frontend
-as a second Cloud Run service and allows its address in the backend's CORS
-settings.
+| Part | Where | How it deploys |
+|---|---|---|
+| Frontend | Cloudflare Workers, [bullbearscope.com](https://bullbearscope.com) | Cloudflare's GitHub integration builds `frontend/` and publishes `dist/` |
+| Backend | Google Cloud Run, `europe-north1` | [`deploy-backend.yml`](.github/workflows/deploy-backend.yml) runs after CI succeeds, signing in with Workload Identity Federation |
+| Database | Neon PostgreSQL | Alembic migrations run on container start |
 
-[docs/DEPLOY.md](docs/DEPLOY.md) also covers Cloud SQL, deploys from GitHub
-Actions with keyless Workload Identity Federation, the Cloudflare frontend, and AWS.
+The one-time Google Cloud setup is scripted and safe to re-run:
+[`deploy/gcp/setup.sh`](deploy/gcp/setup.sh) (APIs, secrets, a least-privilege
+service account, first deploy and a health check) and
+[`deploy/gcp/github-deploy-setup.sh`](deploy/gcp/github-deploy-setup.sh)
+(the keyless GitHub to Google Cloud trust). [docs/DEPLOY.md](docs/DEPLOY.md)
+covers these, Cloud SQL, the Cloudflare setup and an AWS alternative.
 
 ## Project layout
 
@@ -253,8 +337,9 @@ alembic/               database migrations
 tests/                 pytest suite
 frontend/              React + TypeScript app
   src/api/             typed API client, generated schema, query hooks
-  src/components/      hero, search, panels and charts
-  src/lib/             formatting, state, series maths
+  src/components/      header, hero, ribbon, market lists, chart popup, charts
+  src/lib/             modes and themes, time ranges, URL state, formatting, series maths
+  wrangler.jsonc       Cloudflare Workers config
   e2e/                 Playwright tests and API fixtures
   deploy/              nginx config and runtime config script
 dev/                   offline fake market data server
@@ -266,4 +351,5 @@ docs/                  deployment guide, screenshots
 ## Roadmap
 
 - Derived indicators computed from stored history, such as moving averages and volatility
+- Comparing more than two assets at once
 - More data sources behind the same provider interface
