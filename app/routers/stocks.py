@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.routers.deps import Limit, require_ingest_token
+from app.routers.deps import Limit, require_ingest_token, require_stocks_enabled
 from app.schemas import IngestResult, PriceBarOut, PriceSeriesOut
 from app.services import prices
 from app.services.alphavantage import AlphaVantageClient
 from app.services.market import Interval
 
-router = APIRouter(prefix="/api", tags=["stocks"])
+# Every stock endpoint is off while stocks are paused (see Settings.stocks_enabled).
+router = APIRouter(prefix="/api", tags=["stocks"], dependencies=[Depends(require_stocks_enabled)])
 
 Symbol = Annotated[str, Path(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9.\-:]+$")]
 

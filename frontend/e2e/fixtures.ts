@@ -128,9 +128,9 @@ export async function mockApi(page: Page) {
       const price = PRICES[symbol.toUpperCase()]
       if (!price) return json(route, { detail: `Unknown symbol: ${symbol}` }, 404)
       let interval = url.searchParams.get('interval') ?? '5min'
-      // MSFT imitates a used-up stock quota: no intraday candles saved, so the
+      // INJ imitates a provider outage with no intraday candles saved, so the
       // backend serves the closest saved interval (daily) instead.
-      if (symbol.toUpperCase() === 'MSFT' && interval.endsWith('min')) interval = 'daily'
+      if (symbol.toUpperCase() === 'INJ' && interval.endsWith('min')) interval = 'daily'
       const limit = Number(url.searchParams.get('limit') ?? 100)
       const step =
         {

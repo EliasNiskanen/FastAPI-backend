@@ -11,6 +11,8 @@ os.environ.update(
     {
         "DATABASE_URL": "sqlite://",
         "ALPHAVANTAGE_API_KEY": "test-key",
+        # Most tests cover the stock code paths; test_stocks_paused.py turns them off.
+        "STOCKS_ENABLED": "true",
         "INGEST_TOKEN": "",
         "CACHE_TTL_MINUTES": "60",
         "STOCK_MOVERS_TTL_MINUTES": "360",

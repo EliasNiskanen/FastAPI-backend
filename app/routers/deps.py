@@ -19,3 +19,15 @@ def require_ingest_token(
     """
     if settings.ingest_token and x_ingest_token != settings.ingest_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid ingest token")
+
+
+STOCKS_PAUSED = (
+    "Stock prices are paused: showing them publicly needs a commercial data licence. "
+    "Crypto prices work as usual."
+)
+
+
+def require_stocks_enabled(settings: Annotated[Settings, Depends(get_settings)]) -> None:
+    """Answer 404 for stock data while stocks are switched off (STOCKS_ENABLED=false)."""
+    if not settings.stocks_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=STOCKS_PAUSED)

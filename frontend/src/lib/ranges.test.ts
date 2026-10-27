@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { percentTicks, precisionFor } from './chart'
+import { STOCKS_ENABLED } from './features'
 import { kindsFor, parseMode } from './prefs'
 import { isIntraday, RANGES, sourceFor } from './ranges'
 
@@ -32,9 +33,10 @@ describe('prefs', () => {
     expect(parseMode(null)).toBe('all')
   })
 
-  it('maps a mode to the markets it covers', () => {
-    expect(kindsFor('all')).toEqual(['stock', 'crypto'])
-    expect(kindsFor('stock')).toEqual(['stock'])
+  it('searches only coins while stock prices are paused', () => {
+    expect(STOCKS_ENABLED).toBe(false)
+    expect(kindsFor('all')).toEqual(['crypto'])
+    expect(kindsFor('stock')).toEqual(['crypto'])
   })
 })
 

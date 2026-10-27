@@ -10,8 +10,8 @@ export function Footer() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2">
           <p className="max-w-[46ch] leading-relaxed">
-            Crypto prices come from Binance. US stock prices come from Alpha Vantage and can be
-            delayed. Charts by{' '}
+            Crypto prices come from Binance. US stock prices are paused until BullBearScope has a
+            commercial data licence. Charts by{' '}
             <a
               className="text-ink-2 underline decoration-line underline-offset-4 hover:text-ink"
               href="https://www.tradingview.com/"

@@ -2,6 +2,7 @@ import { useDailyBars } from '../api/hooks'
 import { assetKey, assetLabel, priceCurrency, type Asset } from '../lib/asset'
 import { formatPrice } from '../lib/format'
 import { useAssetName } from '../lib/names'
+import { STOCKS_ENABLED } from '../lib/features'
 import { useMode } from '../lib/prefs'
 import { lastCloses, summarize } from '../lib/series'
 import { Change } from './Change'
@@ -83,12 +84,14 @@ export function Watchlist({
   onRemove: (a: Asset) => void
 }) {
   const mode = useMode()
-  const shown = mode === 'all' ? items : items.filter((a) => a.kind === mode)
+  // Saved stocks stay in the list (they come back with stocks) but are hidden for now.
+  const available = STOCKS_ENABLED ? items : items.filter((a) => a.kind === 'crypto')
+  const shown = mode === 'all' ? available : available.filter((a) => a.kind === mode)
   return (
     <Sheet title="Your watchlist" id="watchlist">
       {shown.length === 0 ? (
         <Note>
-          {items.length === 0
+          {available.length === 0
             ? 'Your watchlist is empty. Open any stock or coin and choose Add to watchlist.'
             : `No ${mode === 'crypto' ? 'coins' : 'stocks'} in your watchlist yet. Open one and choose Add to watchlist.`}
         </Note>

@@ -5,6 +5,7 @@
 # Repository variables:
 #   API_URL         e.g. https://market-backend-xxxx.a.run.app
 #   INGEST_SYMBOLS  stocks, e.g. "IBM AAPL MSFT"           (Alpha Vantage, daily quota!)
+#                   Leave empty while stocks are paused (STOCKS_ENABLED=false).
 #   INGEST_CRYPTO   crypto pairs as BASE/QUOTE, e.g. "BTC/EUR ETH/USDT" (Binance, free)
 # Repository secret:
 #   INGEST_TOKEN

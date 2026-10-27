@@ -5,6 +5,7 @@ import type { PriceBar } from '../api/client'
 import { useBars } from '../api/hooks'
 import { assetKey, assetLabel, priceCurrency, type Asset } from '../lib/asset'
 import { errorMessage, STALE_NOTE } from '../lib/errors'
+import { STOCKS_ENABLED } from '../lib/features'
 import { formatCompact, formatPrice } from '../lib/format'
 import { useAssetName } from '../lib/names'
 import {
@@ -24,6 +25,7 @@ import { Note } from './Note'
 import { PercentChart } from './PercentChart'
 import { SearchBox } from './SearchBox'
 import { Segmented } from './Segmented'
+import { StocksPausedNotice } from './StocksPaused'
 
 /** Candles for an asset over a range (null asset = nothing to load). */
 function useRangeBars(asset: Asset | null, range: RangeId) {
@@ -150,7 +152,42 @@ export function AssetDialog({
       }}
       className="sheet tone float-shadow m-auto max-h-[calc(100dvh-1.5rem)] w-[min(1100px,calc(100vw-1.5rem))] overflow-y-auto rounded-[28px] border border-line bg-panel p-0 text-ink"
     >
-      {shown && (
+      {shown && shown.kind === 'stock' && !STOCKS_ENABLED && (
+        // An old link or saved watchlist entry to a stock: explain the pause.
+        <div className="p-5 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-ink-3">US stock</p>
+              <h2
+                id="asset-dialog-title"
+                className="mt-1 font-wide text-[clamp(1.6rem,4vw,2.4rem)] leading-tight font-[680] tracking-[-0.02em]"
+              >
+                {assetLabel(shown)}
+              </h2>
+            </div>
+            <button
+              type="button"
+              ref={closeRef}
+              onClick={onClose}
+              aria-label="Close chart"
+              className="tone grid size-10 shrink-0 place-items-center rounded-full bg-raised text-ink-2 hover:text-ink"
+            >
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4">
+                <path
+                  d="m4 4 8 8M12 4l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-6">
+            <StocksPausedNotice compact onBrowseCrypto={onClose} />
+          </div>
+        </div>
+      )}
+      {shown && (shown.kind === 'crypto' || STOCKS_ENABLED) && (
         <div className="p-5 sm:p-8">
           {/* Header: what this is, its price and how it moved in the range */}
           <div className="flex items-start justify-between gap-4">
@@ -339,7 +376,7 @@ export function AssetDialog({
             {substituted ? (
               <div className="mt-3">
                 <Note tone="warn">
-                  {`${rangeInfo.label} data for ${assetLabel(shown)} can't be fetched right now (the free stock data quota resets daily), so these are the closest saved prices: ${intervalName(served)} candles.`}
+                  {`${rangeInfo.label} data for ${assetLabel(shown)} can't be fetched right now, so these are the closest saved prices: ${intervalName(served)} candles.`}
                 </Note>
               </div>
             ) : (

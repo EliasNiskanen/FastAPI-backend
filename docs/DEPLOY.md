@@ -20,6 +20,7 @@ flowchart LR
 |---|---|---|
 | `DATABASE_URL` | yes | `postgresql+psycopg://user:pass@host:5432/db`. URL-encode special characters in the password. |
 | `ALPHAVANTAGE_API_KEY` | yes | Keep it in a secret store, never in code. |
+| `STOCKS_ENABLED` | no | Default `false`. Stock endpoints answer 404 and search returns coins only. Set `true` only with a stock data licence that allows public display. |
 | `CACHE_TTL_MINUTES` | no | Default 180. How old stored stock data may be before Alpha Vantage is called again (the free key allows ~25 requests a day). |
 | `CRYPTO_CACHE_TTL_MINUTES` | no | Default 5. Same for crypto (Binance has no daily quota). |
 | `DEFAULT_CRYPTO_QUOTE` | no | Default `USDT`. Quote currency when a request has no `?quote=`, and for movers and the market table. |

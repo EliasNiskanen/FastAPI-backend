@@ -212,7 +212,7 @@ def _score(query: str, symbol: str, name: str) -> int | None:
 def search(
     session: Session, sources: MarketSources, settings: Settings, query: str, limit: int
 ) -> tuple[list[dict], bool]:
-    """Find stocks, ETFs and coins by ticker or name.
+    """Find coins, and stocks and ETFs when stocks are enabled, by ticker or name.
 
     Returns (results, partial). partial=True means one of the sources could not
     be loaded, so results may be incomplete.
@@ -231,7 +231,9 @@ def search(
         ).payload
     except ExternalAPIError:
         listing, partial = [], True
-    for symbol, name, exchange, asset_type in listing:
+    # The listing is still loaded while stocks are paused: it is only used
+    # internally, to hide Binance's tokenized stocks from the coin results.
+    for symbol, name, exchange, asset_type in listing if settings.stocks_enabled else []:
         score = _score(q, symbol, name)
         if score is not None:
             # Prefer the big exchanges and plain stocks over ETFs on ties.

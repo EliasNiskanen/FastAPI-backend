@@ -40,7 +40,7 @@ export function SearchBox({
   onSelect,
   size = 'large',
   shortcut = false,
-  kinds = ['stock', 'crypto'],
+  kinds = ['crypto'],
   placeholder,
   label = 'Search stocks and crypto',
 }: {

@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # Cloud SQL (unix socket): postgresql+psycopg://user:password@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/stocks"
 
+    # Stock prices are paused: free stock data plans don't allow showing the
+    # data on a public website. The Alpha Vantage code stays ready; setting
+    # STOCKS_ENABLED=true (with a commercial licence) turns stocks back on.
+    stocks_enabled: bool = False
     alphavantage_api_key: str = ""
     alphavantage_base_url: str = "https://www.alphavantage.co/query"
     http_timeout_seconds: float = 15.0
