@@ -33,4 +33,13 @@ class SymbolNotFoundError(ExternalAPIError):
 
 
 class RateLimitedError(ExternalAPIError):
-    """The provider's request quota is used up (mapped to HTTP 503 + Retry-After)."""
+    """The provider's request quota is used up (mapped to HTTP 503 + Retry-After).
+
+    burst=True means a short per-second limit was hit (worth one quick retry),
+    as opposed to a daily quota that won't reset for hours.
+    """
+
+    def __init__(self, message: str, *, burst: bool = False):
+        """Store whether the limit is a short burst limit."""
+        super().__init__(message)
+        self.burst = burst

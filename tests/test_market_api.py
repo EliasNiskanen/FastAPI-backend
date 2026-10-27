@@ -11,9 +11,9 @@ from app.services.market import RateLimitedError
 def test_crypto_movers_rank_liquid_coins(client):
     """Crypto movers are sorted by 24h change; stablecoins, other quotes and illiquid coins are left out."""
     body = client.get("/api/market/movers", params={"asset_class": "crypto"}).json()
-    assert [m["symbol"] for m in body["gainers"]] == ["SOL", "BTC"]
+    assert [m["symbol"] for m in body["gainers"]] == ["MUB", "SOL", "BTC", "BNB"]
     assert [m["symbol"] for m in body["losers"]] == ["DOGE", "ETH"]
-    sol = body["gainers"][0]
+    sol = body["gainers"][1]
     assert sol["quote"] == "USDT" and sol["name"] == "Solana"
     assert sol["change_percent"] == 8.4
     assert body["stale"] is False
@@ -52,7 +52,7 @@ def test_crypto_overview_keeps_requested_order(client):
 def test_crypto_overview_defaults_to_majors(client):
     """Without symbols the overview lists the major coins that exist in the data."""
     body = client.get("/api/market/crypto").json()
-    assert [i["symbol"] for i in body["items"]] == ["BTC", "ETH", "SOL", "DOGE"]
+    assert [i["symbol"] for i in body["items"]] == ["BTC", "ETH", "SOL", "BNB", "DOGE"]
 
 
 def test_crypto_overview_validates_symbols(client):
@@ -71,7 +71,7 @@ def test_stale_cache_is_served_when_provider_fails(client, session, fake_sources
 
     body = client.get("/api/market/movers").json()
     assert body["stale"] is True
-    assert body["gainers"][0]["symbol"] == "SOL"
+    assert "SOL" in [m["symbol"] for m in body["gainers"]]
 
 
 def test_provider_failure_without_cache_is_503(client, fake_sources):
@@ -137,3 +137,21 @@ def test_stock_movers_get_names_from_cached_listing(client, fake_sources):
     body = client.get("/api/market/movers", params={"asset_class": "stock"}).json()
     assert body["gainers"][0]["name"] == "NVIDIA Corporation"
     assert fake_sources.calls["listing"] == 1
+
+
+def test_tokenized_stocks_are_not_crypto_movers(client):
+    """Binance's tokenized stocks (ticker + "B") are dropped once the stock list is known."""
+    first = client.get("/api/market/movers").json()
+    assert first["gainers"][0]["symbol"] == "MUB"  # stock list not cached yet
+
+    client.get("/api/search", params={"q": "micron"})  # caches the stock list
+    gainers = [m["symbol"] for m in client.get("/api/market/movers").json()["gainers"]]
+    assert "MUB" not in gainers
+    assert "BNB" in gainers  # known coins are never treated as stocks
+
+
+def test_search_shows_the_stock_not_its_token(client):
+    """Searching a tokenized ticker returns the real stock only."""
+    results = client.get("/api/search", params={"q": "mu"}).json()["results"]
+    assert ("stock", "MU") in [(r["asset_class"], r["symbol"]) for r in results]
+    assert "MUB" not in [r["symbol"] for r in results]
