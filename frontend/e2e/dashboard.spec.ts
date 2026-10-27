@@ -98,7 +98,9 @@ test('two assets can be compared on one chart', async ({ page }) => {
 test('watchlist changes are kept after a reload', async ({ page }) => {
   await page.goto('/?a=stock:NVDA')
   await dialog(page).getByRole('button', { name: 'Add to watchlist' }).first().click()
-  await page.keyboard.press('Escape')
+  await dialog(page).getByRole('button', { name: 'Close chart' }).click()
+  await expect(dialog(page)).toBeHidden()
+  await expect(page).not.toHaveURL(/a=/)
   const watchlist = page.locator('#watchlist')
   await expect(watchlist.getByText('NVDA', { exact: true })).toBeVisible()
 
