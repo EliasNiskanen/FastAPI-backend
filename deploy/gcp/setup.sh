@@ -4,8 +4,8 @@
 # Run this in Google Cloud Shell (https://shell.cloud.google.com), from the
 # repository root:
 #
-#   git clone https://github.com/EliasNiskanen/FastAPI-backend.git
-#   cd FastAPI-backend
+#   git clone https://github.com/EliasNiskanen/BullBearScope.git
+#   cd BullBearScope
 #   bash deploy/gcp/setup.sh
 #
 # It is safe to run again: existing resources are reused and secrets get a

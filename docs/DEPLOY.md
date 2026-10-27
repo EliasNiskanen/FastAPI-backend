@@ -81,7 +81,7 @@ flowchart LR
 
    ```bash
    gcloud config set project marketvisualization-backend
-   cd ~/FastAPI-backend && git pull
+   cd ~/BullBearScope && git pull
    bash deploy/gcp/github-deploy-setup.sh
    ```
 
@@ -103,8 +103,8 @@ Neon's free plan gives you PostgreSQL without a credit card.
 2. Open [Google Cloud Shell](https://shell.cloud.google.com) and run:
 
    ```bash
-   git clone https://github.com/EliasNiskanen/FastAPI-backend.git
-   cd FastAPI-backend
+   git clone https://github.com/EliasNiskanen/BullBearScope.git
+   cd BullBearScope
    bash deploy/gcp/setup.sh
    ```
 
@@ -139,7 +139,7 @@ using the app. `europe-north1` is the Finland region.
 ```bash
 PROJECT_ID=your-project-id
 REGION=europe-north1
-REPO=EliasNiskanen/FastAPI-backend
+REPO=EliasNiskanen/BullBearScope
 
 gcloud config set project $PROJECT_ID
 gcloud services enable run.googleapis.com sqladmin.googleapis.com \
@@ -329,7 +329,7 @@ aws iam create-role --role-name github-deploy-market-backend --assume-role-polic
     \"Action\":\"sts:AssumeRoleWithWebIdentity\",
     \"Condition\":{
       \"StringEquals\":{\"token.actions.githubusercontent.com:aud\":\"sts.amazonaws.com\"},
-      \"StringLike\":{\"token.actions.githubusercontent.com:sub\":\"repo:EliasNiskanen/FastAPI-backend:*\"}}}]}"
+      \"StringLike\":{\"token.actions.githubusercontent.com:sub\":\"repo:EliasNiskanen/BullBearScope:*\"}}}]}"
 
 aws iam attach-role-policy --role-name github-deploy-market-backend \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser

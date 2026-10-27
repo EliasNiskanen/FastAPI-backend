@@ -30,7 +30,14 @@ def test_parses_klines():
 
 @pytest.mark.parametrize(
     ("ours", "binance"),
-    [("1min", "1m"), ("5min", "5m"), ("60min", "1h"), ("daily", "1d")],
+    [
+        ("1min", "1m"),
+        ("5min", "5m"),
+        ("60min", "1h"),
+        ("daily", "1d"),
+        ("weekly", "1w"),
+        ("monthly", "1M"),
+    ],
 )
 def test_interval_mapping_and_params(ours, binance):
     """Interval mapping and params."""

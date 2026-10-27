@@ -99,3 +99,32 @@ def test_missing_api_key_is_rejected():
     """Missing api key is rejected."""
     with pytest.raises(ExternalAPIError):
         AlphaVantageClient(Settings(alphavantage_api_key="", database_url="sqlite://"))
+
+
+@pytest.mark.parametrize(
+    ("interval", "function", "key"),
+    [
+        ("weekly", "TIME_SERIES_WEEKLY", "Weekly Time Series"),
+        ("monthly", "TIME_SERIES_MONTHLY", "Monthly Time Series"),
+    ],
+)
+def test_weekly_and_monthly_series(interval, function, key):
+    """Long periods use their own functions and are dated by day, in UTC."""
+    seen = {}
+
+    def handler(req: httpx.Request):
+        """Fake endpoint answering with one candle."""
+        seen.update(req.url.params)
+        row = {
+            "1. open": "1",
+            "2. high": "2",
+            "3. low": "0.5",
+            "4. close": "1.5",
+            "5. volume": "10",
+        }
+        return httpx.Response(200, json={"Meta Data": {}, key: {"2026-10-23": row}})
+
+    bars = make_client(handler).fetch_bars("IBM", interval)
+    assert seen["function"] == function
+    assert "interval" not in seen
+    assert bars[0].ts == datetime(2026, 10, 23, tzinfo=UTC)

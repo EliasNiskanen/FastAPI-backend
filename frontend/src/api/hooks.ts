@@ -14,7 +14,7 @@ import {
   type SearchOut,
 } from './client'
 
-export type Interval = '5min' | '15min' | '60min' | 'daily'
+export type Interval = '1min' | '5min' | '15min' | '60min' | 'daily' | 'weekly' | 'monthly'
 
 const MINUTE = 60_000
 

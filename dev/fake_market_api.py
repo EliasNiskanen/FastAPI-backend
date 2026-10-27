@@ -11,7 +11,7 @@ quotas or network access:
     BINANCE_BASE_URL=http://127.0.0.1:9100 \\
     poetry run uvicorn app.main:app --reload
 
-Implemented: Alpha Vantage TIME_SERIES_INTRADAY, TIME_SERIES_DAILY,
+Implemented: Alpha Vantage TIME_SERIES_INTRADAY, _DAILY, _WEEKLY, _MONTHLY,
 TOP_GAINERS_LOSERS, LISTING_STATUS; Binance /api/v3/klines, /api/v3/ticker/24hr.
 """
 
@@ -63,7 +63,23 @@ COINS = {
 }  # fmt: skip
 
 INTERVAL_MINUTES = {"1min": 1, "5min": 5, "15min": 15, "30min": 30, "60min": 60}
-BINANCE_MINUTES = {"1m": 1, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "1d": 1440}
+BINANCE_MINUTES = {
+    "1m": 1,
+    "5m": 5,
+    "15m": 15,
+    "30m": 30,
+    "1h": 60,
+    "1d": 1440,
+    "1w": 10080,
+    "1M": 43200,
+}
+# Coins are young: cap the history of weekly/monthly candles like real listings.
+MAX_HISTORY = {10080: 400, 43200: 96}
+# Alpha Vantage weekly/monthly series: (key, candle minutes, how many periods)
+AV_PERIODS = {
+    "TIME_SERIES_WEEKLY": ("Weekly Time Series", 10080, 260),
+    "TIME_SERIES_MONTHLY": ("Monthly Time Series", 43200, 180),
+}
 
 
 def _rng(*parts: object) -> random.Random:
@@ -152,6 +168,16 @@ def alphavantage(params: dict[str, str]) -> tuple[int, str, str]:
     """Answer an Alpha Vantage /query request: (status, content type, body)."""
     fn = params.get("function", "")
     symbol = params.get("symbol", "").upper()
+
+    if fn in AV_PERIODS:
+        if symbol not in STOCKS:
+            return 200, "application/json", json.dumps({"Error Message": "Invalid API call."})
+        key, minutes, count = AV_PERIODS[fn]
+        price = STOCKS[symbol][2]
+        rows = _walk(symbol, price, _intraday_times(minutes, count), minutes)
+        series = {ts.strftime("%Y-%m-%d"): _av_row(o, h, lo, c, v) for ts, o, h, lo, c, v in rows}
+        meta = {"2. Symbol": symbol, "4. Time Zone": "US/Eastern"}
+        return 200, "application/json", json.dumps({"Meta Data": meta, key: series})
 
     if fn in ("TIME_SERIES_INTRADAY", "TIME_SERIES_DAILY"):
         if symbol not in STOCKS:
@@ -244,7 +270,7 @@ def binance(path: str, params: dict[str, str]) -> tuple[int, str, str]:
         if price is None:
             return 400, "application/json", json.dumps({"code": -1121, "msg": "Invalid symbol."})
         minutes = BINANCE_MINUTES.get(params.get("interval", "5m"), 5)
-        count = min(int(params.get("limit", 500)), 1000)
+        count = min(int(params.get("limit", 500)), 1000, MAX_HISTORY.get(minutes, 1000))
         base = next(symbol[: -len(q)] for q in ("USDT", "EUR", "USDC") if symbol.endswith(q))
         _, pct = _daily_change(base, price)
         rows = _walk(symbol, price, _intraday_times(minutes, count), minutes, pct)

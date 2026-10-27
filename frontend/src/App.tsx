@@ -1,82 +1,75 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { CompareChart } from './components/CompareChart'
+import { AssetDialog } from './components/AssetDialog'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
-import { MarketView } from './components/MarketView'
-import { PriceChart } from './components/PriceChart'
-import { Snapshot } from './components/Snapshot'
+import { Markets } from './components/Markets'
+import { Reveal } from './components/Reveal'
+import { Ribbon } from './components/Ribbon'
 import { Watchlist } from './components/Watchlist'
-import type { Asset } from './lib/asset'
-import { useSelectedAsset, useWatchlist } from './lib/state'
+import { useMode } from './lib/prefs'
+import { useOpenAsset, useWatchlist } from './lib/state'
 
 export default function App() {
-  const [asset, select] = useSelectedAsset()
+  const [asset, open] = useOpenAsset()
   const watchlist = useWatchlist()
+  const mode = useMode()
   const heroSearchRef = useRef<HTMLDivElement>(null)
-  const deskRef = useRef<HTMLElement>(null)
   const [heroSearchVisible, setHeroSearchVisible] = useState(true)
 
-  // Show the header's compact search only after the hero's search scrolls out of view.
+  // The header's compact search appears once the big search scrolls away.
   useEffect(() => {
     const el = heroSearchRef.current
     if (!el) return
     const observer = new IntersectionObserver(
       ([entry]) => setHeroSearchVisible(entry.isIntersecting),
       {
-        rootMargin: '-64px 0px 0px 0px',
+        rootMargin: '-80px 0px 0px 0px',
       },
     )
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
 
-  /** Open an asset on the dashboard and bring the dashboard into view. */
-  function open(next: Asset) {
-    select(next)
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    deskRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-  }
+  // Keep the browser's theme colour (mobile address bar) in step with the page.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const ground = getComputedStyle(document.documentElement).getPropertyValue('--ground').trim()
+    if (meta && ground) meta.setAttribute('content', ground)
+  })
 
   return (
     <>
       <a
-        href="#desk"
-        className="sr-only z-50 rounded-md bg-raised px-3 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        href="#markets"
+        className="sr-only z-50 rounded-full bg-raised px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
-        Skip to dashboard
+        Skip to markets
       </a>
-      <Header onSelect={open} showSearch={!heroSearchVisible} />
+      <Header onOpen={open} showSearch={!heroSearchVisible} />
       <main>
-        <Hero onSelect={open} searchRef={heroSearchRef} />
-
-        <section
-          id="desk"
-          ref={deskRef}
-          aria-label="Dashboard"
-          className="mx-auto max-w-[1440px] scroll-mt-20 px-4 sm:px-8"
-        >
-          <div className="grid gap-px overflow-hidden rounded-[22px] border border-line bg-line lg:grid-cols-12">
-            <Snapshot
-              asset={asset}
-              onSelect={select}
-              watched={watchlist.has(asset)}
-              onToggleWatch={() => watchlist.toggle(asset)}
-            />
-            <PriceChart asset={asset} />
-            <MarketView selected={asset} onSelect={select} />
-            <Watchlist
-              items={watchlist.items}
-              selected={asset}
-              onSelect={select}
-              onRemove={watchlist.toggle}
-            />
-            <CompareChart assets={watchlist.items} />
+        <Hero onOpen={open} searchRef={heroSearchRef} />
+        <Reveal>
+          <Ribbon onOpen={open} />
+        </Reveal>
+        <div id="markets" className="mt-14 scroll-mt-24 space-y-6">
+          <Markets onOpen={open} />
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-6" key={`watch-${mode}`}>
+            <Reveal>
+              <Watchlist items={watchlist.items} onOpen={open} onRemove={watchlist.toggle} />
+            </Reveal>
           </div>
-        </section>
+        </div>
       </main>
       <Footer />
+      <AssetDialog
+        asset={asset}
+        onClose={() => open(null)}
+        onSwitch={open}
+        watched={asset ? watchlist.has(asset) : false}
+        onToggleWatch={() => asset && watchlist.toggle(asset)}
+      />
     </>
   )
 }

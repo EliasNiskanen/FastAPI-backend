@@ -1,21 +1,19 @@
-/** App state that lives outside React Query: the selected asset (in the URL) and the watchlist. */
+/** App state that lives outside React Query: the open asset (in the URL) and the watchlist. */
 import { useCallback, useEffect, useState } from 'react'
 
 import { assetKey, parseAssetKey, sameAsset, type Asset } from './asset'
 
-export const DEFAULT_ASSET: Asset = { kind: 'crypto', symbol: 'BTC', quote: 'USDT' }
-
-/** Read the selected asset from ?a=... in the address bar. */
-function readUrlAsset(): Asset {
-  return parseAssetKey(new URLSearchParams(window.location.search).get('a')) ?? DEFAULT_ASSET
+/** Read the open asset from ?a=... in the address bar (null = no dialog open). */
+function readUrlAsset(): Asset | null {
+  return parseAssetKey(new URLSearchParams(window.location.search).get('a'))
 }
 
 /**
- * The asset shown on the dashboard. Kept in the URL (?a=stock:AAPL), so a
- * view can be bookmarked or shared and the back button works.
+ * The asset whose chart dialog is open. Kept in the URL (?a=stock:AAPL), so a
+ * chart can be bookmarked or shared, and the browser's back button closes it.
  */
-export function useSelectedAsset(): [Asset, (asset: Asset) => void] {
-  const [asset, setAsset] = useState<Asset>(readUrlAsset)
+export function useOpenAsset(): [Asset | null, (asset: Asset | null) => void] {
+  const [asset, setAsset] = useState<Asset | null>(readUrlAsset)
 
   useEffect(() => {
     const onPop = () => setAsset(readUrlAsset())
@@ -23,20 +21,28 @@ export function useSelectedAsset(): [Asset, (asset: Asset) => void] {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
-  const select = useCallback((next: Asset) => {
+  const open = useCallback((next: Asset | null) => {
     setAsset((current) => {
-      if (sameAsset(current, next)) return current
+      if (current && next && sameAsset(current, next)) return current
       const url = new URL(window.location.href)
-      url.searchParams.set('a', assetKey(next))
-      window.history.pushState(null, '', url)
+      if (next) {
+        url.searchParams.set('a', assetKey(next))
+        // Opening from the page adds a history entry; switching between
+        // assets inside the dialog (e.g. the quote currency) replaces it.
+        if (current) window.history.replaceState(null, '', url)
+        else window.history.pushState(null, '', url)
+      } else {
+        url.searchParams.delete('a')
+        window.history.pushState(null, '', url)
+      }
       return next
     })
   }, [])
 
-  return [asset, select]
+  return [asset, open]
 }
 
-const WATCHLIST_KEY = 'redline.watchlist.v1'
+const WATCHLIST_KEY = 'bullbearscope.watchlist.v1'
 export const MAX_WATCHLIST = 8
 
 export const DEFAULT_WATCHLIST: Asset[] = [
