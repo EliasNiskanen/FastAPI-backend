@@ -8,8 +8,11 @@ import csv
 import io
 import json
 import logging
+import time
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import TypeVar
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -25,6 +28,8 @@ from app.services.market import (
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T")
+
 
 def _raise_for_limit(data: dict) -> None:
     """Raise RateLimitedError if Alpha Vantage answered with a quota message.
@@ -33,10 +38,13 @@ def _raise_for_limit(data: dict) -> None:
     free quota is used up (or the endpoint needs a premium key).
     """
     if "Note" in data or "Information" in data:
-        logger.warning(
-            "Alpha Vantage limit message: %s", data.get("Note") or data.get("Information")
+        message = str(data.get("Note") or data.get("Information"))
+        logger.warning("Alpha Vantage limit message: %s", message)
+        # The free key also allows only about one request per second; that
+        # message mentions "second" and clears almost immediately.
+        raise RateLimitedError(
+            "Market data provider rate limit reached", burst="second" in message.lower()
         )
-        raise RateLimitedError("Market data provider rate limit reached")
 
 
 def _number(value: object) -> float:
@@ -47,6 +55,9 @@ def _number(value: object) -> float:
 class AlphaVantageClient:
     """Fetches stock candles from Alpha Vantage. Needs ALPHAVANTAGE_API_KEY."""
 
+    # Seconds to wait before retrying after a per-second limit (tests set 0).
+    burst_wait_seconds = 1.2
+
     def __init__(self, settings: Settings, http: httpx.Client | None = None):
         """Create the client. `http` can be replaced in tests with a fake transport."""
         if not settings.alphavantage_api_key:
@@ -54,7 +65,7 @@ class AlphaVantageClient:
         self._settings = settings
         self._http = http or httpx.Client(timeout=settings.http_timeout_seconds)
 
-    def fetch_bars(self, symbol: str, interval: str) -> list[Bar]:
+    def _fetch_bars(self, symbol: str, interval: str) -> list[Bar]:
         """Download the latest candles for a stock symbol and return them oldest first."""
         if interval not in SUPPORTED_INTERVALS:
             raise ValueError(f"Unsupported interval: {interval}")
@@ -131,7 +142,7 @@ class AlphaVantageClient:
             raise ExternalAPIError("Market data provider is unreachable") from exc
         return response
 
-    def fetch_top_movers(self) -> dict:
+    def _fetch_top_movers(self) -> dict:
         """Today's biggest US stock gainers and losers (function TOP_GAINERS_LOSERS).
 
         Returns {"last_updated": str | None, "gainers": [...], "losers": [...]},
@@ -175,7 +186,7 @@ class AlphaVantageClient:
             "losers": rows(data["top_losers"]),
         }
 
-    def fetch_listing(self) -> list[list[str]]:
+    def _fetch_listing(self) -> list[list[str]]:
         """All actively listed US stocks and ETFs (function LISTING_STATUS, a CSV file).
 
         Returns compact rows [symbol, name, exchange, asset_type] for search.
@@ -208,3 +219,25 @@ class AlphaVantageClient:
             for row in reader
             if row.get("symbol") and (row.get("status") or "Active") == "Active"
         ]
+
+    def _with_burst_retry(self, call: Callable[[], T]) -> T:
+        """Run `call`; if it hits the per-second limit, wait a moment and try once more."""
+        try:
+            return call()
+        except RateLimitedError as exc:
+            if not exc.burst:
+                raise
+            time.sleep(self.burst_wait_seconds)
+            return call()
+
+    def fetch_bars(self, symbol: str, interval: str) -> list[Bar]:
+        """Download the latest candles for a stock symbol and return them oldest first."""
+        return self._with_burst_retry(lambda: self._fetch_bars(symbol, interval))
+
+    def fetch_top_movers(self) -> dict:
+        """Today's biggest US stock gainers and losers (see _fetch_top_movers)."""
+        return self._with_burst_retry(self._fetch_top_movers)
+
+    def fetch_listing(self) -> list[list[str]]:
+        """All actively listed US stocks and ETFs (see _fetch_listing)."""
+        return self._with_burst_retry(self._fetch_listing)
