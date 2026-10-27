@@ -49,8 +49,7 @@ export const DEFAULT_WATCHLIST: Asset[] = [
   { kind: 'crypto', symbol: 'BTC', quote: 'USDT' },
   { kind: 'crypto', symbol: 'ETH', quote: 'USDT' },
   { kind: 'crypto', symbol: 'SOL', quote: 'USDT' },
-  { kind: 'stock', symbol: 'AAPL' },
-  { kind: 'stock', symbol: 'MSFT' },
+  { kind: 'crypto', symbol: 'XRP', quote: 'USDT' },
 ]
 
 /** Load the saved watchlist. Storage can be unavailable (private mode), so fall back quietly. */

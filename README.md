@@ -4,7 +4,7 @@
 
 # BullBearScope
 
-**Watch the bulls and the bears.** A full-stack market tracker for US stocks and crypto.
+**Watch the bulls and the bears.** A full-stack crypto market tracker, built to cover US stocks too.
 
 [**bullbearscope.com**](https://bullbearscope.com) ·
 [API docs](https://market-backend-u7emkto2ja-lz.a.run.app/docs) ·
@@ -21,23 +21,29 @@
 
 </div>
 
-![BullBearScope front page in All mode: a live headline about the day's biggest move, search, a ticker ribbon and lists of rising stocks and coins](docs/images/all-dark.png)
+![BullBearScope front page in All mode: a live headline about the day's biggest move, search, a ticker ribbon and crypto movers and major coins](docs/images/all-dark.png)
 
-BullBearScope shows the day's biggest gainers and losers in US stocks and
-crypto, lets you search any listed company or coin, and opens a chart for it in
-a popup above the page, with five time ranges and side-by-side comparison of
-two assets. A **FastAPI** backend collects prices from public APIs into
+BullBearScope shows the day's biggest crypto gainers and losers, lets you
+search every coin on Binance, and opens a chart for it in a popup above the
+page, with five time ranges and side-by-side comparison of two assets. A **FastAPI** backend collects prices from public APIs into
 **PostgreSQL**; a **React + TypeScript** frontend presents them. Everything
 deploys automatically when a pull request is merged.
 
+> **Stock prices are paused.** The app was built for US stocks and crypto, and
+> the stock code is still here (Alpha Vantage client, caching, tests). But no
+> free stock data plan allows showing the data on a public website, so stocks
+> are switched off with one setting (`STOCKS_ENABLED=false` on the backend,
+> `STOCKS_ENABLED` in `frontend/src/lib/features.ts`) until there is funding
+> for a commercial licence. The site says so in a banner and on the Stocks tab.
+
 ## Features
 
-- **Three markets, three looks.** *All* (the front page) mixes stocks and
-  crypto in graphite and red. *Crypto* switches to gold and blue, *Stocks* to
-  blue and light grey. Each has a light and a dark theme, and every colour pair
+- **Three markets, three looks.** *All* (the front page) in graphite and red,
+  *Crypto* in gold and blue, *Stocks* in blue and light grey (for now a notice
+  that stocks are coming back). Each has a light and a dark theme, and every colour pair
   was checked for WCAG contrast.
 - **A front page that tells the day's story.** The headline is written from
-  live data ("NVIDIA Corporation is down 8.9% today."), a ticker ribbon drifts
+  live data ("TRON is down 5.8% today."), a ticker ribbon drifts
   past, and the market lists fade in as you scroll.
 - **Charts in a floating popup.** Click any row, ribbon chip or search result
   and a candlestick chart opens on top of the page. The URL updates
@@ -46,11 +52,13 @@ deploys automatically when a pull request is merged.
 - **Time ranges: 15 min, 1 day, 1 month, 1 year, all time.** Each range picks
   the right candle size per market (1-minute candles for 15 minutes, monthly
   candles for all time).
-- **Compare two assets.** Pick a second stock or coin and both are drawn as
-  percent change from the start of the range on one axis, so a $0.20 coin and a
-  $500 stock are directly comparable.
-- **Search** across 10,000+ US stocks and ETFs and every coin on Binance, with
-  keyboard navigation (`/` focuses it).
+- **Compare two assets.** Pick a second coin and both are drawn as percent
+  change from the start of the range on one axis, so a $0.20 coin and a
+  $90,000 one are directly comparable.
+- **Search** across every coin on Binance (and 10,000+ US stocks and ETFs when
+  stocks are on), with keyboard navigation (`/` focuses it).
+- **Saved prices before error pages.** If a provider can't be reached, the
+  chart shows the closest saved candles and says so.
 - **Watchlist** with sparklines, saved in the browser.
 - **Accessible and responsive.** Native `<dialog>` with focus handling,
   ▲/▼ next to every gain/loss colour, keyboard-operable controls, motion turned
@@ -59,19 +67,19 @@ deploys automatically when a pull request is merged.
 <table>
   <tr>
     <td width="50%"><img src="docs/images/chart-popup.png" alt="Bitcoin candlestick chart in a popup, with time range and currency controls and a stats row"></td>
-    <td width="50%"><img src="docs/images/compare.png" alt="NVIDIA and Microsoft compared as percent change over a year in light mode, with a hover tooltip"></td>
+    <td width="50%"><img src="docs/images/compare.png" alt="Solana and Ethereum compared as percent change over a year in light mode, with a hover tooltip"></td>
   </tr>
   <tr>
     <td><sub>Chart popup in Crypto mode (dark)</sub></td>
-    <td><sub>Comparing two stocks over a year (light)</sub></td>
+    <td><sub>Comparing two coins over a year (light)</sub></td>
   </tr>
   <tr>
     <td><img src="docs/images/crypto-light.png" alt="Crypto mode in light theme: gold and blue, rising, falling and major coins"></td>
-    <td><img src="docs/images/stock-dark.png" alt="Stocks mode in dark theme: blue accents, rising and falling stocks and the watchlist"></td>
+    <td><img src="docs/images/stocks-paused.png" alt="The Stocks tab in light theme: a notice that stock prices are paused until there is a commercial data licence"></td>
   </tr>
   <tr>
     <td><sub>Crypto mode (light)</sub></td>
-    <td><sub>Stocks mode (dark)</sub></td>
+    <td><sub>Stocks tab while stock prices are paused</sub></td>
   </tr>
 </table>
 
@@ -130,7 +138,7 @@ Request flow for `GET /api/crypto/BTC?quote=EUR`:
 | **Alembic** | Versioned schema migrations, including a data-preserving migration that added crypto support (new column, primary key change, integer to decimal volume). Runs automatically on container start. |
 | **psycopg 3** | PostgreSQL driver. |
 | **httpx** | HTTP client for the external APIs, with timeouts. Its `MockTransport` lets tests simulate the APIs without network access. |
-| **Alpha Vantage API** | Source for stock prices, daily top gainers and losers, and the list of all listed US symbols (a weekly-cached CSV that powers stock search). Its errors arrive as HTTP 200 with special JSON keys, which the client translates into proper exceptions. |
+| **Alpha Vantage API** | Source for stock prices, daily top gainers and losers, and the list of all listed US symbols (a weekly-cached CSV that powers stock search). Its errors arrive as HTTP 200 with special JSON keys, which the client translates into proper exceptions. Switched off in production while stocks are paused; the symbol list is still used internally to hide Binance's tokenized stocks from the coin lists. |
 | **Binance public market data API** | Source for crypto candles (`/api/v3/klines`) and 24-hour statistics for every pair (`/api/v3/ticker/24hr`), free and keyless. One cached 24h response feeds the movers, the market table and crypto search. |
 | **pytest** | Unit and API tests with in-memory SQLite and fake data sources, plus a concurrency regression test that runs against real PostgreSQL in CI. |
 | **Ruff** | Linting and formatting, enforced in CI. |
@@ -178,8 +186,10 @@ source does not touch them.
 
 **Stale data beats an error page.** If a provider is rate limited or down
 when stored data needs a refresh, the backend serves what it has with
-`stale: true`, and the frontend says so. Only data that was never fetched
-produces an error.
+`stale: true`, and the frontend says so. If nothing is stored for the
+requested candle size, it serves the closest one it has (daily candles
+instead of 5-minute ones, say) and reports which, so the chart can label it
+honestly. Only an asset with nothing stored at all produces an error.
 
 **Atomic upserts, found by testing in the browser.** The dashboard's panels
 load in parallel, so the first visit to a new asset sent several requests that
@@ -225,7 +235,7 @@ up in logs.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/stocks/{symbol}?interval=5min&limit=500` | Stock candles, e.g. `IBM` |
+| GET | `/api/stocks/{symbol}?interval=5min&limit=500` | Stock candles, e.g. `IBM` (404 while stocks are paused) |
 | GET | `/api/crypto/{base}?quote=USDT&interval=5min&limit=500` | Crypto candles, e.g. `BTC` with `quote=EUR` |
 | GET | `/api/market/movers?asset_class=crypto&limit=8` | Biggest daily gainers and losers (`stock` or `crypto`) |
 | GET | `/api/market/crypto?symbols=BTC,ETH` | 24h price, change and volume for coins (default: major coins) |

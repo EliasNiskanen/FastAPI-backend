@@ -1,9 +1,9 @@
 /**
  * Chart time ranges (15 min, 1 day, 1 month, 1 year, all time) and which
  * candles each one uses. Stocks and crypto differ because of their data
- * sources: Binance serves 1000 candles of any size for free, while the free
- * Alpha Vantage key returns ~100 intraday or daily candles per request, so
- * stocks switch to weekly/monthly candles sooner.
+ * sources: Binance serves 1000 candles of any size for free, while stock
+ * requests are rationed by a daily quota, so stocks switch to
+ * weekly/monthly candles sooner.
  */
 import type { Interval } from '../api/hooks'
 import type { Asset } from './asset'
@@ -73,4 +73,25 @@ export function sourceFor(asset: Asset, range: RangeId): Source {
 /** Intraday ranges show times on the axis; longer ones show dates. */
 export function isIntraday(range: RangeId): boolean {
   return range === '15m' || range === '1d'
+}
+
+/** True for candle sizes shorter than a day (the chart then shows times of day). */
+export function isIntradayInterval(interval: string): boolean {
+  return interval.endsWith('min')
+}
+
+const INTERVAL_NAMES: Record<string, string> = {
+  '1min': '1-minute',
+  '5min': '5-minute',
+  '15min': '15-minute',
+  '30min': '30-minute',
+  '60min': 'hourly',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+}
+
+/** "daily", "5-minute": for sentences about candle sizes. */
+export function intervalName(interval: string): string {
+  return INTERVAL_NAMES[interval] ?? interval
 }

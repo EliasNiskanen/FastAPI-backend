@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.routers.deps import Limit, require_ingest_token
+from app.routers.deps import Limit, require_ingest_token, require_stocks_enabled
 from app.schemas import IngestResult, PriceBarOut, PriceSeriesOut
 from app.services import prices
 from app.services.alphavantage import AlphaVantageClient
 from app.services.market import Interval
 
-router = APIRouter(prefix="/api", tags=["stocks"])
+# Every stock endpoint is off while stocks are paused (see Settings.stocks_enabled).
+router = APIRouter(prefix="/api", tags=["stocks"], dependencies=[Depends(require_stocks_enabled)])
 
 Symbol = Annotated[str, Path(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9.\-:]+$")]
 
@@ -34,13 +35,16 @@ def read_prices(
 ) -> PriceSeriesOut:
     """Stock price bars from our own database, refreshed from Alpha Vantage only when stale."""
     sym = prices.normalize_symbol(symbol)
-    result = prices.get_bars(
-        session, fetch, "stock", sym, interval, settings.cache_ttl_minutes, limit
+    ttl = (
+        settings.stock_long_ttl_minutes
+        if interval in ("weekly", "monthly")
+        else settings.cache_ttl_minutes
     )
+    result = prices.get_bars(session, fetch, "stock", sym, interval, ttl, limit)
     return PriceSeriesOut(
         asset_class="stock",
         symbol=sym,
-        interval=interval,
+        interval=result.interval,
         stale=result.stale,
         bars=[PriceBarOut.model_validate(b) for b in result.bars],
     )

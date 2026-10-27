@@ -2,6 +2,7 @@ import type { MarketItem } from '../api/client'
 import { useMovers } from '../api/hooks'
 import type { Asset } from '../lib/asset'
 import { itemAsset } from '../lib/market'
+import { STOCKS_ENABLED } from '../lib/features'
 import { useMode } from '../lib/prefs'
 import { Change } from './Change'
 
@@ -40,8 +41,11 @@ export function Ribbon({ onOpen }: { onOpen: (a: Asset) => void }) {
   const crypto = useMovers('crypto')
   const stock = useMovers('stock')
   const pick = (d: typeof crypto.data) => [...(d?.gainers ?? []), ...(d?.losers ?? [])]
-  const items =
-    mode === 'crypto'
+  const items = !STOCKS_ENABLED
+    ? mode === 'stock'
+      ? []
+      : pick(crypto.data)
+    : mode === 'crypto'
       ? pick(crypto.data)
       : mode === 'stock'
         ? pick(stock.data)

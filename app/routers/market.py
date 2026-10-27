@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db import get_session
+from app.routers.deps import require_stocks_enabled
 from app.schemas import CryptoOverviewOut, MarketItem, MoversOut, SearchOut, SearchResult
 from app.services import markets
 from app.services.alphavantage import AlphaVantageClient
@@ -54,6 +55,7 @@ def read_movers(
     if asset_class == "crypto":
         cached, gainers, losers = markets.crypto_movers(session, sources, settings, limit)
     else:
+        require_stocks_enabled(settings)
         cached, gainers, losers = markets.stock_movers(session, sources, settings, limit)
     return MoversOut(
         asset_class=asset_class,
@@ -95,6 +97,6 @@ def search(
     q: Annotated[str, Query(min_length=1, max_length=40, description="Ticker or name")],
     limit: Annotated[int, Query(ge=1, le=25)] = 8,
 ) -> SearchOut:
-    """Search stocks, ETFs and coins by ticker or company/coin name."""
+    """Search coins (and stocks and ETFs when enabled) by ticker or name."""
     results, partial = markets.search(session, sources, settings, q, limit)
     return SearchOut(query=q, partial=partial, results=[SearchResult(**r) for r in results])

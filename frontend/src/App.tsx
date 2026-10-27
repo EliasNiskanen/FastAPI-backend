@@ -8,6 +8,7 @@ import { Markets } from './components/Markets'
 import { Reveal } from './components/Reveal'
 import { Ribbon } from './components/Ribbon'
 import { Watchlist } from './components/Watchlist'
+import { STOCKS_ENABLED } from './lib/features'
 import { useMode } from './lib/prefs'
 import { useOpenAsset, useWatchlist } from './lib/state'
 
@@ -50,17 +51,22 @@ export default function App() {
       <Header onOpen={open} showSearch={!heroSearchVisible} />
       <main>
         <Hero onOpen={open} searchRef={heroSearchRef} />
-        <Reveal>
-          <Ribbon onOpen={open} />
-        </Reveal>
-        <div id="markets" className="mt-14 scroll-mt-24 space-y-6">
-          <Markets onOpen={open} />
-          <div className="mx-auto max-w-[1240px] px-4 sm:px-6" key={`watch-${mode}`}>
+        {/* While stock prices are paused, the Stocks tab is just the notice. */}
+        {(STOCKS_ENABLED || mode !== 'stock') && (
+          <>
             <Reveal>
-              <Watchlist items={watchlist.items} onOpen={open} onRemove={watchlist.toggle} />
+              <Ribbon onOpen={open} />
             </Reveal>
-          </div>
-        </div>
+            <div id="markets" className="mt-14 scroll-mt-24 space-y-6">
+              <Markets onOpen={open} />
+              <div className="mx-auto max-w-[1240px] px-4 sm:px-6" key={`watch-${mode}`}>
+                <Reveal>
+                  <Watchlist items={watchlist.items} onOpen={open} onRemove={watchlist.toggle} />
+                </Reveal>
+              </div>
+            </div>
+          </>
+        )}
       </main>
       <Footer />
       <AssetDialog

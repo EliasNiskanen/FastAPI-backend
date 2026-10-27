@@ -18,7 +18,7 @@ function renderSearch(onSelect = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <SearchBox onSelect={onSelect} />
+      <SearchBox onSelect={onSelect} kinds={['stock', 'crypto']} />
     </QueryClientProvider>,
   )
   return onSelect

@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from 'react'
 
 import type { Asset } from './asset'
+import { STOCKS_ENABLED } from './features'
 
 export type Mode = 'all' | 'crypto' | 'stock'
 export type Theme = 'dark' | 'light'
@@ -82,5 +83,6 @@ window.addEventListener('popstate', () => {
 
 /** Which markets search and lists cover in a mode. */
 export function kindsFor(mode: Mode): Asset['kind'][] {
+  if (!STOCKS_ENABLED) return ['crypto']
   return mode === 'all' ? ['stock', 'crypto'] : [mode]
 }

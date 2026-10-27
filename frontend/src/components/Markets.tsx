@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { useCryptoOverview, useMovers } from '../api/hooks'
 import type { Asset } from '../lib/asset'
+import { STOCKS_ENABLED } from '../lib/features'
 import { useMode } from '../lib/prefs'
 import { MarketList, Sheet } from './MarketCard'
 import { Reveal } from './Reveal'
@@ -97,13 +98,24 @@ function MajorsSheet({ onOpen }: { onOpen: (a: Asset) => void }) {
 
 /**
  * Today's market as lists. What is shown depends on the market mode:
- * both markets side by side, or one market in more depth.
+ * both markets side by side, or one market in more depth. While stock
+ * prices are paused, "All" shows crypto and "Stocks" shows nothing here.
  */
 export function Markets({ onOpen }: { onOpen: (a: Asset) => void }) {
   const mode = useMode()
   return (
     <div className="mx-auto max-w-[1240px] px-4 sm:px-6" key={mode}>
-      {mode === 'all' && (
+      {mode === 'all' && !STOCKS_ENABLED && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Reveal>
+            <MoversSheet kind="crypto" title="Crypto movers" onOpen={onOpen} />
+          </Reveal>
+          <Reveal delay={120}>
+            <MajorsSheet onOpen={onOpen} />
+          </Reveal>
+        </div>
+      )}
+      {mode === 'all' && STOCKS_ENABLED && (
         <div className="grid gap-6 lg:grid-cols-2">
           <Reveal>
             <MoversSheet kind="crypto" title="Crypto" onOpen={onOpen} />
@@ -126,7 +138,7 @@ export function Markets({ onOpen }: { onOpen: (a: Asset) => void }) {
           </Reveal>
         </div>
       )}
-      {mode === 'stock' && (
+      {mode === 'stock' && STOCKS_ENABLED && (
         <div className="grid gap-6 lg:grid-cols-2">
           <Reveal>
             <SideSheet kind="stock" side="gainers" title="Rising" onOpen={onOpen} />

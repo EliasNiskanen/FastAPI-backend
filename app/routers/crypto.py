@@ -59,7 +59,7 @@ def read_crypto_prices(
     return PriceSeriesOut(
         asset_class="crypto",
         symbol=pair,
-        interval=interval,
+        interval=result.interval,
         stale=result.stale,
         bars=[PriceBarOut.model_validate(b) for b in result.bars],
     )

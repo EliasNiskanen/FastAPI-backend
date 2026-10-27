@@ -5,9 +5,18 @@ import type { PriceBar } from '../api/client'
 import { useBars } from '../api/hooks'
 import { assetKey, assetLabel, priceCurrency, type Asset } from '../lib/asset'
 import { errorMessage, STALE_NOTE } from '../lib/errors'
+import { STOCKS_ENABLED } from '../lib/features'
 import { formatCompact, formatPrice } from '../lib/format'
 import { useAssetName } from '../lib/names'
-import { DEFAULT_RANGE, isIntraday, RANGES, sourceFor, type RangeId } from '../lib/ranges'
+import {
+  DEFAULT_RANGE,
+  intervalName,
+  isIntraday,
+  isIntradayInterval,
+  RANGES,
+  sourceFor,
+  type RangeId,
+} from '../lib/ranges'
 import { percentFromStart, summarizeRange } from '../lib/series'
 import { useChartColors } from '../lib/useChartColors'
 import { CandleChart } from './CandleChart'
@@ -16,6 +25,7 @@ import { Note } from './Note'
 import { PercentChart } from './PercentChart'
 import { SearchBox } from './SearchBox'
 import { Segmented } from './Segmented'
+import { StocksPausedNotice } from './StocksPaused'
 
 /** Candles for an asset over a range (null asset = nothing to load). */
 function useRangeBars(asset: Asset | null, range: RangeId) {
@@ -122,6 +132,15 @@ export function AssetDialog({
   const summary = summarizeRange(bars)
   const currency = shown ? priceCurrency(shown) : 'USD'
   const rangeInfo = RANGES.find((r) => r.id === range)!
+  // The backend serves the closest saved candle size when the requested one
+  // can't be fetched (e.g. daily candles when the stock quota is used up).
+  const requested = shown ? sourceFor(shown, range).interval : 'daily'
+  const served = main.data?.interval ?? requested
+  const substituted = served !== requested && bars.length > 0
+  const phrase = substituted
+    ? `since ${new Date(bars[0].ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : rangeInfo.phrase
+  const intraday = substituted ? isIntradayInterval(served) : isIntraday(range)
 
   return (
     <dialog
@@ -133,7 +152,42 @@ export function AssetDialog({
       }}
       className="sheet tone float-shadow m-auto max-h-[calc(100dvh-1.5rem)] w-[min(1100px,calc(100vw-1.5rem))] overflow-y-auto rounded-[28px] border border-line bg-panel p-0 text-ink"
     >
-      {shown && (
+      {shown && shown.kind === 'stock' && !STOCKS_ENABLED && (
+        // An old link or saved watchlist entry to a stock: explain the pause.
+        <div className="p-5 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-ink-3">US stock</p>
+              <h2
+                id="asset-dialog-title"
+                className="mt-1 font-wide text-[clamp(1.6rem,4vw,2.4rem)] leading-tight font-[680] tracking-[-0.02em]"
+              >
+                {assetLabel(shown)}
+              </h2>
+            </div>
+            <button
+              type="button"
+              ref={closeRef}
+              onClick={onClose}
+              aria-label="Close chart"
+              className="tone grid size-10 shrink-0 place-items-center rounded-full bg-raised text-ink-2 hover:text-ink"
+            >
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4">
+                <path
+                  d="m4 4 8 8M12 4l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-6">
+            <StocksPausedNotice compact onBrowseCrypto={onClose} />
+          </div>
+        </div>
+      )}
+      {shown && (shown.kind === 'crypto' || STOCKS_ENABLED) && (
         <div className="p-5 sm:p-8">
           {/* Header: what this is, its price and how it moved in the range */}
           <div className="flex items-start justify-between gap-4">
@@ -163,7 +217,7 @@ export function AssetDialog({
                 {summary && (
                   <span className="text-sm">
                     <Change percent={summary.changePercent} absolute={summary.change} />{' '}
-                    <span className="text-ink-3">{rangeInfo.phrase}</span>
+                    <span className="text-ink-3">{phrase}</span>
                   </span>
                 )}
               </div>
@@ -263,7 +317,7 @@ export function AssetDialog({
           <div className="relative mt-5 h-[min(52vh,440px)] min-h-[260px]">
             {compare ? (
               <PercentChart
-                intraday={isIntraday(range)}
+                intraday={intraday}
                 series={[
                   {
                     key: 'a',
@@ -290,8 +344,8 @@ export function AssetDialog({
               >
                 <CandleChart
                   bars={bars}
-                  intraday={isIntraday(range)}
-                  label={`Candlestick chart of ${assetLabel(shown)} ${rangeInfo.phrase}`}
+                  intraday={intraday}
+                  label={`Candlestick chart of ${assetLabel(shown)} ${phrase}`}
                   onHover={onHover}
                 />
               </div>
@@ -319,10 +373,18 @@ export function AssetDialog({
             ) : (
               <Stats bars={bars} hovered={hovered} currency={currency} />
             )}
-            {(main.data?.stale || other.data?.stale) && (
+            {substituted ? (
               <div className="mt-3">
-                <Note tone="warn">{STALE_NOTE}</Note>
+                <Note tone="warn">
+                  {`${rangeInfo.label} data for ${assetLabel(shown)} can't be fetched right now, so these are the closest saved prices: ${intervalName(served)} candles.`}
+                </Note>
               </div>
+            ) : (
+              (main.data?.stale || other.data?.stale) && (
+                <div className="mt-3">
+                  <Note tone="warn">{STALE_NOTE}</Note>
+                </div>
+              )
             )}
             <button
               type="button"

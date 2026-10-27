@@ -6,6 +6,7 @@
 import { keepPreviousData, queryOptions, useQueries, useQuery } from '@tanstack/react-query'
 
 import type { Asset } from '../lib/asset'
+import { STOCKS_ENABLED } from '../lib/features'
 import {
   getJson,
   type CryptoOverviewOut,
@@ -31,6 +32,7 @@ export function useMovers(kind: Asset['kind'], limit = 8) {
     queryFn: ({ signal }) =>
       getJson<MoversOut>('/api/market/movers', { asset_class: kind, limit }, signal),
     staleTime: (kind === 'crypto' ? 2 : 30) * MINUTE,
+    enabled: kind === 'crypto' || STOCKS_ENABLED,
     retry,
   })
 }
@@ -76,7 +78,8 @@ function barsQuery(asset: Asset | null, interval: Interval, limit: number) {
             signal,
           )
     },
-    enabled: asset !== null,
+    // While stocks are paused, stock assets (e.g. from an old link) load nothing.
+    enabled: asset !== null && (asset.kind === 'crypto' || STOCKS_ENABLED),
     // Stocks are refreshed by the backend every few hours (free API quota);
     // crypto every few minutes.
     staleTime: (asset?.kind === 'crypto' ? 2 : 15) * MINUTE,
