@@ -24,7 +24,7 @@ export function Footer() {
             Built by Elias Niskanen with FastAPI, PostgreSQL and React.{' '}
             <a
               className="text-ink-2 underline decoration-line underline-offset-4 hover:text-ink"
-              href="https://github.com/EliasNiskanen/FastAPI-backend"
+              href="https://github.com/EliasNiskanen/BullBearScope"
             >
               View the source on GitHub
             </a>

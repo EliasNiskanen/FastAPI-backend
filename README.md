@@ -10,7 +10,7 @@
 [API docs](https://market-backend-u7emkto2ja-lz.a.run.app/docs) ·
 [How it's built](#architecture)
 
-[![CI](https://github.com/EliasNiskanen/FastAPI-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/EliasNiskanen/FastAPI-backend/actions/workflows/ci.yml)
+[![CI](https://github.com/EliasNiskanen/BullBearScope/actions/workflows/ci.yml/badge.svg)](https://github.com/EliasNiskanen/BullBearScope/actions/workflows/ci.yml)
 ![Python 3.13](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
