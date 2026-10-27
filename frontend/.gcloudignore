@@ -1,0 +1,5 @@
+# Files not uploaded to Cloud Build by `gcloud run deploy --source frontend`
+node_modules
+dist
+test-results
+playwright-report
