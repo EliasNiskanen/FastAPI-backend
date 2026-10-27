@@ -74,3 +74,24 @@ export function sourceFor(asset: Asset, range: RangeId): Source {
 export function isIntraday(range: RangeId): boolean {
   return range === '15m' || range === '1d'
 }
+
+/** True for candle sizes shorter than a day (the chart then shows times of day). */
+export function isIntradayInterval(interval: string): boolean {
+  return interval.endsWith('min')
+}
+
+const INTERVAL_NAMES: Record<string, string> = {
+  '1min': '1-minute',
+  '5min': '5-minute',
+  '15min': '15-minute',
+  '30min': '30-minute',
+  '60min': 'hourly',
+  daily: 'daily',
+  weekly: 'weekly',
+  monthly: 'monthly',
+}
+
+/** "daily", "5-minute": for sentences about candle sizes. */
+export function intervalName(interval: string): string {
+  return INTERVAL_NAMES[interval] ?? interval
+}

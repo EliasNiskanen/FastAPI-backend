@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # How long stored stock candles count as fresh before we spend an Alpha
     # Vantage request again. The free key allows only ~25 requests per day.
     cache_ttl_minutes: int = Field(default=180, ge=0)
+    # Weekly and monthly stock candles barely change during a day.
+    stock_long_ttl_minutes: int = Field(default=24 * 60, ge=0)
     # Binance has no daily quota, so crypto (candles and 24h tickers) can
     # refresh much more often.
     crypto_cache_ttl_minutes: int = Field(default=5, ge=0)

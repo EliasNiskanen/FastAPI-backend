@@ -31,7 +31,10 @@ class PriceSeriesOut(BaseModel):
 
     asset_class: AssetClass
     symbol: str
-    interval: str
+    interval: str = Field(
+        description="Interval of the returned candles. Differs from the requested one when "
+        "that could not be fetched and the closest stored interval is served instead."
+    )
     stale: bool = Field(
         default=False,
         description="True if the provider could not be reached and stored candles are returned.",

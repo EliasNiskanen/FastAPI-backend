@@ -94,3 +94,21 @@ def test_timestamps_are_returned_in_utc(client):
     """Timestamps are returned in utc."""
     bars = client.get("/api/stocks/IBM").json()["bars"]
     assert bars[-1]["ts"] == "2026-10-23T20:00:00Z"
+
+
+def test_rate_limit_serves_closest_stored_interval(client, fake_fetcher):
+    """With the quota used up, a missing interval falls back to the nearest one stored."""
+    assert client.get("/api/stocks/IBM", params={"interval": "daily"}).status_code == 200
+    fake_fetcher.exc = RateLimitedError("limit")
+    r = client.get("/api/stocks/IBM", params={"interval": "5min"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["interval"] == "daily"
+    assert body["stale"] is True
+    assert len(body["bars"]) == 2
+
+
+def test_rate_limit_without_any_stored_data_is_still_503(client, fake_fetcher):
+    """A symbol with nothing stored in any interval can't be served."""
+    fake_fetcher.exc = RateLimitedError("limit")
+    assert client.get("/api/stocks/IBM", params={"interval": "weekly"}).status_code == 503
