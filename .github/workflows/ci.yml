@@ -31,11 +31,13 @@ jobs:
       - run: poetry install
       - run: poetry run ruff check .
       - run: poetry run ruff format --check .
-      - run: poetry run pytest -q
+      # Migrations first: they must build the schema on an empty database
+      # (the PostgreSQL tests then run against the migrated schema).
       - name: Migrations apply cleanly to real PostgreSQL
         run: |
           poetry run alembic upgrade head
           poetry run alembic check
+      - run: poetry run pytest -q
 
   frontend:
     runs-on: ubuntu-latest
@@ -57,7 +59,8 @@ jobs:
       - run: npm run build
 
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright's system dependencies are published for Ubuntu 24.04.
+    runs-on: ubuntu-24.04
     needs: frontend
     defaults:
       run:
