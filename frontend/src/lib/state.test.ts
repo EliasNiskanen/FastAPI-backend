@@ -16,14 +16,16 @@ describe('useWatchlist', () => {
     const tsla = { kind: 'stock' as const, symbol: 'TSLA' }
     act(() => result.current.toggle(tsla))
     expect(result.current.has(tsla)).toBe(true)
-    expect(JSON.parse(window.localStorage.getItem('redline.watchlist.v1')!)).toContain('stock:TSLA')
+    expect(JSON.parse(window.localStorage.getItem('bullbearscope.watchlist.v1')!)).toContain(
+      'stock:TSLA',
+    )
 
     act(() => result.current.toggle(tsla))
     expect(result.current.has(tsla)).toBe(false)
   })
 
   it('ignores corrupted saved data', () => {
-    window.localStorage.setItem('redline.watchlist.v1', '{not json')
+    window.localStorage.setItem('bullbearscope.watchlist.v1', '{not json')
     const { result } = renderHook(() => useWatchlist())
     expect(result.current.items).toEqual(DEFAULT_WATCHLIST)
   })

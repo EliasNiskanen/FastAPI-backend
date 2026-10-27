@@ -40,10 +40,17 @@ export function SearchBox({
   onSelect,
   size = 'large',
   shortcut = false,
+  kinds = ['stock', 'crypto'],
+  placeholder,
+  label = 'Search stocks and crypto',
 }: {
   onSelect: (asset: Asset) => void
   size?: 'large' | 'compact'
   shortcut?: boolean
+  /** Which markets to show results for (follows the page's market mode). */
+  kinds?: Asset['kind'][]
+  placeholder?: string
+  label?: string
 }) {
   const [text, setText] = useState('')
   const [open, setOpen] = useState(false)
@@ -54,11 +61,13 @@ export function SearchBox({
   const search = useSearch(query)
 
   const options = useMemo(() => {
-    const found = (search.data?.results ?? []).map(toOption)
+    const found = (search.data?.results ?? [])
+      .filter((r) => kinds.includes(r.asset_class))
+      .map(toOption)
     // If the stock list is unavailable (or a ticker isn't listed), still let
     // people open an exact ticker as a stock.
     const typed = query.trim().toUpperCase()
-    if (TICKER.test(typed) && !found.some((o) => o.symbol === typed)) {
+    if (kinds.includes('stock') && TICKER.test(typed) && !found.some((o) => o.symbol === typed)) {
       found.push({
         id: `stock:${typed}:direct`,
         asset: { kind: 'stock', symbol: typed },
@@ -68,7 +77,7 @@ export function SearchBox({
       })
     }
     return found
-  }, [search.data, query])
+  }, [search.data, query, kinds])
 
   useEffect(() => {
     search.data?.results.forEach((r) => {
@@ -125,12 +134,12 @@ export function SearchBox({
   return (
     <div className="relative w-full">
       <label className="sr-only" htmlFor={`${listId}-input`}>
-        Search stocks and crypto
+        {label}
       </label>
       <div
         className={clsx(
-          'flex items-center gap-3 border border-line bg-panel transition-colors focus-within:border-ink-3',
-          large ? 'h-16 rounded-2xl px-5' : 'h-10 rounded-xl px-3.5',
+          'tone flex items-center gap-3 border border-line bg-panel focus-within:border-accent',
+          large ? 'float-shadow h-16 rounded-full px-6' : 'h-10 rounded-full px-4',
         )}
       >
         <svg
@@ -151,7 +160,7 @@ export function SearchBox({
           aria-activedescendant={showList && options[active] ? `${listId}-${active}` : undefined}
           autoComplete="off"
           spellCheck={false}
-          placeholder={large ? 'Search a company, ticker or coin' : 'Search'}
+          placeholder={placeholder ?? (large ? 'Search a company, ticker or coin' : 'Search')}
           value={text}
           onChange={(e) => {
             setText(e.target.value)
@@ -178,7 +187,7 @@ export function SearchBox({
           id={listId}
           role="listbox"
           aria-label="Search results"
-          className="absolute inset-x-0 top-full z-30 mt-2 max-h-96 overflow-y-auto rounded-xl border border-line bg-raised py-1.5 shadow-[0_24px_48px_-12px_rgb(0_0_0/0.6)]"
+          className="float-shadow absolute inset-x-0 top-full z-50 mt-2 max-h-96 overflow-y-auto rounded-2xl border border-line bg-panel py-2"
         >
           {options.length === 0 && (
             <li className="px-4 py-3 text-sm text-ink-3" role="presentation">
@@ -199,7 +208,7 @@ export function SearchBox({
               className={clsx(
                 'relative flex cursor-pointer items-center gap-4 px-4 py-2.5',
                 i === active &&
-                  'bg-ground/70 before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:bg-signal',
+                  'bg-raised before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-accent',
               )}
             >
               <span className="w-20 shrink-0 font-semibold font-wide text-ink">{o.symbol}</span>

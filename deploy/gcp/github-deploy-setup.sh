@@ -20,6 +20,18 @@ RUN_SA="market-backend-run@${PROJECT_ID}.iam.gserviceaccount.com"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 
+# Run a gcloud command, retrying for up to ~2 minutes: a service account
+# created seconds ago is not visible to IAM everywhere yet ("may not exist").
+retry() {
+  local i
+  for i in $(seq 1 12); do
+    if "$@" >/dev/null 2>&1; then return 0; fi
+    echo "   waiting for IAM to catch up ($i/12)..."
+    sleep 10
+  done
+  "$@" >/dev/null # last try shows the real error
+}
+
 gcloud config set project "$PROJECT_ID" >/dev/null
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 
@@ -34,13 +46,13 @@ if ! gcloud iam service-accounts describe "$DEPLOYER" >/dev/null 2>&1; then
 fi
 # Exactly what `gcloud run deploy --source` needs, nothing more.
 for role in roles/run.sourceDeveloper roles/serviceusage.serviceUsageConsumer; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$DEPLOYER" \
-    --role="$role" --condition=None >/dev/null
+  retry gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$DEPLOYER" \
+    --role="$role" --condition=None
   echo "   granted $role"
 done
 # The deployer may start the service as its runtime identity.
-gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" \
-  --member="serviceAccount:$DEPLOYER" --role=roles/iam.serviceAccountUser >/dev/null
+retry gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" \
+  --member="serviceAccount:$DEPLOYER" --role=roles/iam.serviceAccountUser
 echo "   may act as $RUN_SA"
 
 step "Workload identity pool for GitHub"
@@ -60,10 +72,9 @@ else
     --attribute-mapping=google.subject=assertion.sub,attribute.repository_id=assertion.repository_id \
     --attribute-condition="$CONDITION"
 fi
-gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER" \
+retry gcloud iam service-accounts add-iam-policy-binding "$DEPLOYER" \
   --role=roles/iam.workloadIdentityUser \
-  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/attribute.repository_id/${REPO_ID}" \
-  >/dev/null
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL}/attribute.repository_id/${REPO_ID}"
 echo "   GitHub repository ${REPO_ID} (main branch) may deploy as $DEPLOYER"
 
 cat <<DONE

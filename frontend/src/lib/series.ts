@@ -60,3 +60,40 @@ export function percentSince(bars: PriceBar[], since: number): PercentPoint[] {
 export function lastCloses(bars: PriceBar[], count: number): number[] {
   return bars.slice(-count).map((b) => b.close)
 }
+
+/** Numbers for a whole range of candles: first open, extremes, last close and total volume. */
+export interface RangeSummary {
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+  change: number
+  changePercent: number
+  from: string
+  to: string
+}
+
+/** Summarize the candles shown in a chart. */
+export function summarizeRange(bars: PriceBar[]): RangeSummary | null {
+  const first = bars[0]
+  const last = bars.at(-1)
+  if (!first || !last) return null
+  const change = last.close - first.open
+  return {
+    open: first.open,
+    high: Math.max(...bars.map((b) => b.high)),
+    low: Math.min(...bars.map((b) => b.low)),
+    close: last.close,
+    volume: bars.reduce((sum, b) => sum + b.volume, 0),
+    change,
+    changePercent: first.open !== 0 ? (change / first.open) * 100 : 0,
+    from: first.ts,
+    to: last.ts,
+  }
+}
+
+/** Closing prices as percent change since the first candle (for comparison lines). */
+export function percentFromStart(bars: PriceBar[]): PercentPoint[] {
+  return bars.length ? percentSince(bars, Date.parse(bars[0].ts) / 1000) : []
+}

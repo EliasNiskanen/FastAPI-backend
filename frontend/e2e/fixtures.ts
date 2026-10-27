@@ -70,6 +70,7 @@ const PRICES: Record<string, number> = {
   BTC: 98250,
   ETH: 3480,
   SOL: 182,
+  INJ: 21,
   AAPL: 228,
   MSFT: 431,
   NVDA: 140,
@@ -128,14 +129,23 @@ export async function mockApi(page: Page) {
       if (!price) return json(route, { detail: `Unknown symbol: ${symbol}` }, 404)
       const interval = url.searchParams.get('interval') ?? '5min'
       const limit = Number(url.searchParams.get('limit') ?? 100)
-      const step = { '5min': 300, '15min': 900, '60min': 3600, daily: 86400 }[interval] ?? 300
+      const step =
+        {
+          '1min': 60,
+          '5min': 300,
+          '15min': 900,
+          '60min': 3600,
+          daily: 86400,
+          weekly: 7 * 86400,
+          monthly: 30 * 86400,
+        }[interval] ?? 300
       const quote = url.searchParams.get('quote') ?? 'USDT'
       return json(route, {
         asset_class: kind === 'stocks' ? 'stock' : 'crypto',
         symbol: kind === 'stocks' ? symbol.toUpperCase() : `${symbol.toUpperCase()}${quote}`,
         interval,
         stale: false,
-        bars: bars(price, Math.min(limit, 200), step),
+        bars: bars(price, Math.min(limit, 400), step),
       })
     }
     return json(route, { detail: 'Not found' }, 404)

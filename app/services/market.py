@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Literal, get_args
 
 # The interval names our API uses. Each provider maps them to its own codes.
-Interval = Literal["1min", "5min", "15min", "30min", "60min", "daily"]
+Interval = Literal["1min", "5min", "15min", "30min", "60min", "daily", "weekly", "monthly"]
 SUPPORTED_INTERVALS: tuple[str, ...] = get_args(Interval)
 
 AssetClass = Literal["stock", "crypto"]

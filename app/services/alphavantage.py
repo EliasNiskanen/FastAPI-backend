@@ -31,6 +31,14 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+# Interval -> (Alpha Vantage function, key of the series in the response).
+_PERIOD_FUNCTIONS = {
+    "daily": ("TIME_SERIES_DAILY", "Time Series (Daily)"),
+    "weekly": ("TIME_SERIES_WEEKLY", "Weekly Time Series"),
+    "monthly": ("TIME_SERIES_MONTHLY", "Monthly Time Series"),
+}
+
+
 def _raise_for_limit(data: dict) -> None:
     """Raise RateLimitedError if Alpha Vantage answered with a quota message.
 
@@ -71,8 +79,10 @@ class AlphaVantageClient:
             raise ValueError(f"Unsupported interval: {interval}")
 
         params = {"symbol": symbol, "apikey": self._settings.alphavantage_api_key}
-        if interval == "daily":
-            params["function"] = "TIME_SERIES_DAILY"
+        if interval in _PERIOD_FUNCTIONS:
+            # Daily, weekly and monthly series; weekly and monthly cover the
+            # whole history, which powers the 1-year and all-time views.
+            params["function"] = _PERIOD_FUNCTIONS[interval][0]
         else:
             params["function"] = "TIME_SERIES_INTRADAY"
             params["interval"] = interval
@@ -99,7 +109,11 @@ class AlphaVantageClient:
             raise SymbolNotFoundError(f"Unknown symbol: {symbol}")
         _raise_for_limit(data)
 
-        series_key = "Time Series (Daily)" if interval == "daily" else f"Time Series ({interval})"
+        series_key = (
+            _PERIOD_FUNCTIONS[interval][1]
+            if interval in _PERIOD_FUNCTIONS
+            else f"Time Series ({interval})"
+        )
         series = data.get(series_key)
         meta = data.get("Meta Data", {})
         if not isinstance(series, dict):
@@ -110,7 +124,7 @@ class AlphaVantageClient:
 
         bars = []
         for raw_ts, values in series.items():
-            if interval == "daily":
+            if interval in _PERIOD_FUNCTIONS:
                 d = date.fromisoformat(raw_ts)
                 ts = datetime(d.year, d.month, d.day, tzinfo=UTC)
             else:

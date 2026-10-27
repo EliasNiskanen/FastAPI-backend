@@ -2,72 +2,276 @@
 @import '@fontsource-variable/archivo/wdth.css';
 
 /*
- * Redline design tokens.
- * Graphite surfaces, warm white ink, one signal red used sparingly
- * (brand mark, selection, focus). Gains and losses have their own colours
- * and always come with an arrow, so meaning never rests on colour alone.
+ * BullBearScope design tokens.
+ *
+ * Three market modes, each with a dark and a light theme:
+ *   all     graphite + signal red      /  light grey + red
+ *   crypto  deep navy + gold and blue  /  pale blue-white + darker gold and blue
+ *   stock   slate + blue and light grey /  light grey + blue
+ * Utilities (bg-panel, text-ink, ...) read these variables, so switching
+ * mode or theme recolours the whole page with one attribute change.
+ * Every pair below is checked for WCAG contrast; gains and losses always
+ * come with an arrow, so meaning never rests on colour alone.
  */
-@theme {
+@theme inline {
   --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
 
-  --color-ground: #1e1f22; /* page */
-  --color-panel: #25262a; /* instrument panels */
-  --color-raised: #2e2f34; /* inputs, hover, chips */
-  --color-line: #36373d; /* hairlines between panels */
-  --color-ink: #eeece7; /* primary text */
-  --color-ink-2: #a9a8ae; /* secondary text */
-  --color-ink-3: #93939b; /* tertiary text, axis labels */
-  --color-signal: #e8344a; /* brand red: selection, focus, logo */
-  --color-signal-deep: #8f1424;
-  --color-up: #4cc98f;
-  --color-down: #ff6b6b;
+  --color-ground: var(--ground); /* page background */
+  --color-panel: var(--panel); /* floating sheets, dialog */
+  --color-raised: var(--raised); /* inputs, hover, chips */
+  --color-line: var(--line); /* hairlines */
+  --color-ink: var(--ink); /* primary text */
+  --color-ink-2: var(--ink-2); /* secondary text */
+  --color-ink-3: var(--ink-3); /* tertiary text, axes */
+  --color-accent: var(--accent); /* the mode's signature colour */
+  --color-accent-2: var(--accent-2); /* its partner colour */
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-series-a: var(--series-a); /* comparison chart, first asset */
+  --color-series-b: var(--series-b); /* comparison chart, second asset */
+}
 
-  /* Comparison chart series: validated for colour-vision deficiency on --color-panel. */
-  --color-series-1: #3987e5;
-  --color-series-2: #d95926;
-  --color-series-3: #199e70;
-  --color-series-4: #c98500;
-  --color-series-5: #d55181;
+:root,
+:root[data-mode='all'][data-theme='dark'] {
+  --ground: #1e1f22;
+  --panel: #26272b;
+  --raised: #303136;
+  --line: #3a3b41;
+  --ink: #eeece7;
+  --ink-2: #abaab0;
+  --ink-3: #9a9aa2;
+  --accent: #e8344a;
+  --accent-2: #b9b8be;
+  --orb-1: #e8344a;
+  --orb-2: #8a8b93;
+  --orb-opacity: 0.22;
+}
 
-  --font-stretch-wide: 125%;
-  --font-stretch-condensed: 85%;
+:root[data-mode='all'][data-theme='light'] {
+  --ground: #ececee;
+  --panel: #ffffff;
+  --raised: #f3f3f5;
+  --line: #d9d9de;
+  --ink: #1c1d21;
+  --ink-2: #4f5058;
+  --ink-3: #696a72;
+  --accent: #c8102e;
+  --accent-2: #6e6f77;
+  --orb-1: #e8344a;
+  --orb-2: #b9b9c0;
+  --orb-opacity: 0.28;
+}
+
+:root[data-mode='crypto'][data-theme='dark'] {
+  --ground: #0d1525;
+  --panel: #142036;
+  --raised: #1b2a45;
+  --line: #263856;
+  --ink: #eef2fa;
+  --ink-2: #aebad0;
+  --ink-3: #93a1ba;
+  --accent: #e6b84c;
+  --accent-2: #5b8def;
+  --orb-1: #e6b84c;
+  --orb-2: #3b6fe0;
+  --orb-opacity: 0.24;
+}
+
+:root[data-mode='crypto'][data-theme='light'] {
+  --ground: #f2f5fb;
+  --panel: #ffffff;
+  --raised: #eaf0fa;
+  --line: #d5deec;
+  --ink: #111a2c;
+  --ink-2: #45526a;
+  --ink-3: #5e6a82;
+  --accent: #9a6b00;
+  --accent-2: #2a5fd0;
+  --orb-1: #f2c95f;
+  --orb-2: #8fb3ff;
+  --orb-opacity: 0.4;
+}
+
+:root[data-mode='stock'][data-theme='dark'] {
+  --ground: #161a21;
+  --panel: #1e232c;
+  --raised: #272d38;
+  --line: #333a47;
+  --ink: #e9ecf1;
+  --ink-2: #abb3c1;
+  --ink-3: #929bab;
+  --accent: #5b9bff;
+  --accent-2: #c9ced8;
+  --orb-1: #3d7fff;
+  --orb-2: #9aa3b2;
+  --orb-opacity: 0.22;
+}
+
+:root[data-mode='stock'][data-theme='light'] {
+  --ground: #eceef2;
+  --panel: #ffffff;
+  --raised: #f4f5f8;
+  --line: #d9dde3;
+  --ink: #151920;
+  --ink-2: #4a5260;
+  --ink-3: #626a78;
+  --accent: #1f5fd6;
+  --accent-2: #7b8494;
+  --orb-1: #6f9dff;
+  --orb-2: #c3c9d3;
+  --orb-opacity: 0.38;
+}
+
+/* Gain/loss and comparison colours depend only on light vs dark. */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --up: #4cc98f;
+  --down: #ff6b6b;
+  --series-a: #3987e5;
+  --series-b: #d95926;
+  --shadow: 0 30px 80px -30px rgb(0 0 0 / 0.75);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --up: #0e7a49;
+  --down: #c2263a;
+  --series-a: #2a78d6;
+  --series-b: #eb6834;
+  --shadow: 0 30px 70px -34px rgb(20 24 40 / 0.35);
 }
 
 @layer base {
   html {
-    color-scheme: dark;
-    background: var(--color-ground);
-    color: var(--color-ink);
+    background: var(--ground);
+    color: var(--ink);
     font-family: var(--font-sans);
-    font-variation-settings: normal;
     -webkit-font-smoothing: antialiased;
+    transition:
+      background-color 0.5s ease,
+      color 0.5s ease;
   }
 
   body {
     min-height: 100dvh;
+    background: var(--ground);
+    transition: background-color 0.5s ease;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-signal);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--color-signal-deep);
-    color: var(--color-ink);
+    background: color-mix(in oklab, var(--accent) 40%, transparent);
+    color: var(--ink);
   }
+}
+
+/* Surfaces fade to the new colours when the mode or theme changes. */
+@utility tone {
+  transition:
+    background-color 0.5s ease,
+    border-color 0.5s ease,
+    color 0.5s ease,
+    box-shadow 0.5s ease;
 }
 
 @utility font-wide {
   font-stretch: 125%;
 }
 
-@utility font-condensed {
-  font-stretch: 85%;
-}
-
 @utility nums {
   font-variant-numeric: tabular-nums;
+}
+
+@utility float-shadow {
+  box-shadow: var(--shadow);
+}
+
+/* ---- Motion ------------------------------------------------------------- */
+
+/* Slowly drifting colour fields behind the hero. */
+@keyframes drift-a {
+  from {
+    transform: translate3d(-6%, -4%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(8%, 6%, 0) scale(1.12);
+  }
+}
+@keyframes drift-b {
+  from {
+    transform: translate3d(5%, 4%, 0) scale(1.08);
+  }
+  to {
+    transform: translate3d(-7%, -5%, 0) scale(0.96);
+  }
+}
+
+/* The movers ribbon scrolls continuously; the list is rendered twice. */
+@keyframes ribbon {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Content fades up once as it scrolls into view (see Reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The asset dialog floats in from slightly below. */
+dialog.sheet {
+  opacity: 0;
+  transform: translateY(24px) scale(0.98);
+  transition:
+    opacity 0.28s ease,
+    transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+    overlay 0.32s allow-discrete,
+    display 0.32s allow-discrete;
+}
+dialog.sheet[open] {
+  opacity: 1;
+  transform: none;
+}
+@starting-style {
+  dialog.sheet[open] {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+}
+dialog.sheet::backdrop {
+  background: rgb(8 10 16 / 0);
+  backdrop-filter: blur(0);
+  transition:
+    background 0.3s ease,
+    backdrop-filter 0.3s ease,
+    overlay 0.3s allow-discrete,
+    display 0.3s allow-discrete;
+}
+dialog.sheet[open]::backdrop {
+  background: rgb(8 10 16 / 0.55);
+  backdrop-filter: blur(6px);
+}
+@starting-style {
+  dialog.sheet[open]::backdrop {
+    background: rgb(8 10 16 / 0);
+    backdrop-filter: blur(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -75,7 +279,12 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }
