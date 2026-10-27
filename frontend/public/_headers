@@ -1,0 +1,13 @@
+# Response headers for the Cloudflare deployment (Workers static assets).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+
+# Hashed build files never change.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Always fetch the latest page and runtime settings.
+/config.js
+  Cache-Control: no-cache
