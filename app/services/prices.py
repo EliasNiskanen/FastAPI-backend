@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import FetchLog, PriceBar
-from app.services.market import AssetClass, Bar, ExternalAPIError
+from app.services.market import AssetClass, Bar, ExternalAPIError, nearest_intervals
 from app.services.upsert import upsert
 
 logger = logging.getLogger(__name__)
@@ -107,9 +107,15 @@ def ingest(
 
 @dataclass(frozen=True)
 class BarsResult:
-    """Candles for one series, plus whether they could not be refreshed (stale=True)."""
+    """Candles for one series.
+
+    stale=True means they could not be refreshed. `interval` is the interval of
+    the returned candles; it differs from the requested one only when nothing
+    was stored for that interval and a neighbouring one was served instead.
+    """
 
     bars: list[PriceBar]
+    interval: str
     stale: bool = False
 
 
@@ -146,18 +152,17 @@ def get_bars(
     If the stored data is stale, fetch fresh data from the external API first.
     This is what keeps us inside the free API quotas.
 
-    If that refresh fails (quota used up, provider down) but older candles are
-    stored, those are returned with stale=True instead of failing the request.
+    If that refresh fails (quota used up, provider down), stored candles are
+    returned with stale=True instead of failing the request: the requested
+    interval if we have it, otherwise the closest interval we do have (for
+    example daily candles when 5-minute ones can't be fetched). Only a series
+    with nothing stored at all produces an error.
     """
-    stale = False
     if is_stale(session, asset_class, symbol, interval, ttl_minutes):
         try:
             ingest(session, fetch, asset_class, symbol, interval)
         except ExternalAPIError as exc:
             session.rollback()
-            stored = _stored_bars(session, asset_class, symbol, interval, limit)
-            if not stored:
-                raise
             logger.warning(
                 "Refreshing %s %s %s failed (%s); serving stored candles",
                 asset_class,
@@ -165,6 +170,11 @@ def get_bars(
                 interval,
                 exc,
             )
-            return BarsResult(stored, stale=True)
+            # Same interval first, then the closest interval we have stored.
+            for candidate in (interval, *nearest_intervals(interval)):
+                stored = _stored_bars(session, asset_class, symbol, candidate, limit)
+                if stored:
+                    return BarsResult(stored, candidate, stale=True)
+            raise
 
-    return BarsResult(_stored_bars(session, asset_class, symbol, interval, limit), stale)
+    return BarsResult(_stored_bars(session, asset_class, symbol, interval, limit), interval)
