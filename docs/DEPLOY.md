@@ -40,6 +40,59 @@ is not affected.
 
 ---
 
+## Production setup: bullbearscope.com
+
+How the live site runs, and what happens on every merge to `main`:
+
+```mermaid
+flowchart LR
+    PR[Merge to main] --> CI[GitHub Actions CI]
+    CI -->|tests pass| DB[Deploy backend workflow]
+    DB -->|keyless OIDC login| CR[Cloud Run: FastAPI]
+    PR --> CF[Cloudflare Workers Builds]
+    CF -->|npm run build + wrangler deploy| W[bullbearscope.com static site]
+    W -->|API calls| CR
+```
+
+- **Frontend:** Cloudflare builds `frontend/` and serves it as static files
+  on bullbearscope.com (`frontend/wrangler.jsonc`). The backend address is
+  baked in at build time from `frontend/.env.production`.
+- **Backend:** `.github/workflows/deploy-backend.yml` deploys to Cloud Run
+  after CI passes on `main`, logging in to Google Cloud with Workload
+  Identity Federation, so no cloud keys are stored in GitHub.
+
+### One-time setup
+
+1. **Cloudflare** (dashboard → Workers & Pages → Create → Import a repository):
+   pick this repository and set
+
+   | Setting | Value |
+   |---|---|
+   | Project name | `bullbearscope` |
+   | Production branch | `main` |
+   | Root directory | `frontend` |
+   | Build command | `npm run build` |
+   | Deploy command | `npx wrangler deploy` |
+
+   `wrangler.jsonc` attaches `bullbearscope.com` and `www.bullbearscope.com`;
+   Cloudflare creates the DNS records and certificates.
+
+2. **Google Cloud** (Cloud Shell, once):
+
+   ```bash
+   gcloud config set project marketvisualization-backend
+   cd ~/FastAPI-backend && git pull
+   bash deploy/gcp/github-deploy-setup.sh
+   ```
+
+   It creates a `github-deployer` service account that may only deploy
+   Cloud Run from source, and a workload identity provider that accepts only
+   this repository's `main` branch.
+
+After that, merging a pull request is the whole release process.
+
+---
+
 ## Quick start: Google Cloud Run + Neon (free)
 
 The fastest way to get online. Cloud Run's free tier covers personal use, and
@@ -72,7 +125,7 @@ Neon's free plan gives you PostgreSQL without a credit card.
 The frontend container's only setting is `API_URL` (the backend address),
 written into `/config.js` at startup.
 
-The longer sections below cover Cloud SQL, GitHub Actions deploys and AWS.
+The longer sections below cover Cloud SQL and AWS.
 
 ---
 
@@ -169,7 +222,7 @@ Settings → Secrets and variables → Actions → **Variables**:
 | `CLOUDSQL_INSTANCE` | `PROJECT_ID:europe-north1:market-db` |
 | `CORS_ORIGINS` | your frontend URL(s) |
 
-Then Actions → **Deploy to GCP (Cloud Run)** → Run workflow. The last step
+With Cloud SQL, adapt `.github/workflows/deploy-backend.yml` (add `--add-cloudsql-instances`) and run it from the Actions tab. The last step
 calls `/health/ready` on the new URL.
 
 ---

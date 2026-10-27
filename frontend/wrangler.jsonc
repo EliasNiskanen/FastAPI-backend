@@ -1,0 +1,19 @@
+// Cloudflare Workers deployment of the frontend as static files.
+// Workers Builds (connected to GitHub) runs `npm run build` in frontend/ and
+// then `npx wrangler deploy` on every push to main.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bullbearscope",
+  "compatibility_date": "2026-10-27",
+  "assets": {
+    "directory": "./dist",
+    // Unknown paths return index.html, so deep links like /?a=stock:AAPL work.
+    "not_found_handling": "single-page-application",
+  },
+  // The domain is on the same Cloudflare account, so Cloudflare creates the
+  // DNS records and the HTTPS certificate automatically.
+  "routes": [
+    { "pattern": "bullbearscope.com", "custom_domain": true },
+    { "pattern": "www.bullbearscope.com", "custom_domain": true },
+  ],
+}
