@@ -1,0 +1,70 @@
+# Deploys the backend to Google Cloud Run whenever CI passes on main
+# (and on demand from the Actions tab). The frontend is deployed separately
+# by Cloudflare, which builds frontend/ on every push to main.
+#
+# One-time setup: run deploy/gcp/github-deploy-setup.sh in Cloud Shell.
+# The values below are identifiers, not secrets; login is keyless (OIDC).
+name: Deploy backend
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: marketvisualization-backend
+  REGION: europe-north1
+  SERVICE: market-backend
+  RUNTIME_SA: market-backend-run@marketvisualization-backend.iam.gserviceaccount.com
+  WIF_PROVIDER: projects/207804176001/locations/global/workloadIdentityPools/github/providers/github-repo
+  DEPLOYER_SA: github-deployer@marketvisualization-backend.iam.gserviceaccount.com
+  # Browsers may call the API from these sites.
+  CORS_ORIGINS: https://bullbearscope.com,https://www.bullbearscope.com,https://market-frontend-u7emkto2ja-lz.a.run.app
+
+jobs:
+  deploy:
+    # Only deploy commits that passed CI on main.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # keyless login to Google Cloud
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Deploy exactly the commit that CI tested.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --source . \
+            --region "$REGION" \
+            --service-account "$RUNTIME_SA" \
+            --allow-unauthenticated \
+            --set-secrets "DATABASE_URL=database-url:latest,ALPHAVANTAGE_API_KEY=alphavantage-api-key:latest,INGEST_TOKEN=ingest-token:latest" \
+            --update-env-vars "^|^CORS_ORIGINS=${CORS_ORIGINS}" \
+            --min-instances 0 \
+            --max-instances 2 \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)')
+          curl -fsS --retry 6 --retry-delay 5 --retry-all-errors "$URL/health/ready"
+          curl -fsS -o /dev/null -H "Origin: https://bullbearscope.com" "$URL/api/market/movers?asset_class=crypto"
+          echo "Deployed $URL"
