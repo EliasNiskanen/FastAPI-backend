@@ -159,6 +159,8 @@ SAMPLE_TICKERS = [
     ticker("TINYUSDT", 0.01, 45.0, 50_000),  # illiquid: excluded from movers
     ticker("USDCUSDT", 1.0, 0.01, 3_000_000_000),  # stablecoin: always excluded
     ticker("BTCEUR", 90000, 2.4, 80_000_000),  # other quote: excluded
+    ticker("MUBUSDT", 110, 12.0, 30_000_000),  # tokenized Micron stock (MU + "B")
+    ticker("BNBUSDT", 610, 0.5, 70_000_000),  # a real coin, although BN is a stock ticker
 ]
 
 SAMPLE_STOCK_MOVERS = {
@@ -176,6 +178,8 @@ SAMPLE_STOCK_MOVERS = {
 SAMPLE_LISTING = [
     ["AAPL", "Apple Inc", "NASDAQ", "Stock"],
     ["APLE", "Apple Hospitality REIT Inc", "NYSE", "Stock"],
+    ["MU", "Micron Technology Inc", "NASDAQ", "Stock"],
+    ["BN", "Brookfield Corp", "NYSE", "Stock"],
     ["MSFT", "Microsoft Corporation", "NASDAQ", "Stock"],
     ["NVDA", "NVIDIA Corporation", "NASDAQ", "Stock"],
     ["SPY", "SPDR S&P 500 ETF Trust", "NYSE ARCA", "ETF"],

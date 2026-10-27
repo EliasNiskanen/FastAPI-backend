@@ -108,12 +108,40 @@ def crypto_tickers(session: Session, sources: MarketSources, settings: Settings)
     )
 
 
+def _tokenized_stock_filter(session: Session) -> Callable[[str], bool]:
+    """A test for "this Binance asset is a tokenized US stock, not a coin".
+
+    Binance lists tokenized stocks as the stock's ticker plus "B" (MU -> MUB,
+    CRCL -> CRCLB). Binance's data has no reliable flag for them, so match that
+    pattern against the cached US stock list. Known coins are never excluded
+    (BNB stays, although BN is also a NYSE ticker). Until the stock list has
+    been cached (by the first search), nothing is filtered.
+    """
+    stocks = {row[0] for row in peek(session, "stock:listing") or []}
+
+    def is_tokenized(base: str) -> bool:
+        """True if `base` looks like a tokenized stock."""
+        return (
+            base not in CRYPTO_NAMES
+            and len(base) >= 3
+            and base.endswith("B")
+            and base[:-1] in stocks
+        )
+
+    return is_tokenized
+
+
 def crypto_movers(
     session: Session, sources: MarketSources, settings: Settings, limit: int
 ) -> tuple[Cached, list[dict], list[dict]]:
     """Biggest 24h gainers and losers among liquid coins (enough trading volume)."""
     cached = crypto_tickers(session, sources, settings)
-    liquid = [t for t in cached.payload if t["volume"] >= settings.crypto_movers_min_volume]
+    tokenized = _tokenized_stock_filter(session)
+    liquid = [
+        t
+        for t in cached.payload
+        if t["volume"] >= settings.crypto_movers_min_volume and not tokenized(t["symbol"])
+    ]
     ranked = sorted(liquid, key=lambda t: t["change_percent"], reverse=True)
     gainers = [t for t in ranked if t["change_percent"] > 0][:limit]
     losers = [t for t in reversed(ranked) if t["change_percent"] < 0][:limit]
@@ -196,27 +224,7 @@ def search(
     hits: list[tuple[int, int, dict]] = []  # (score, tie-breaker, result)
     partial = False
 
-    try:
-        coins = crypto_tickers(session, sources, settings).payload
-    except ExternalAPIError:
-        coins, partial = [], True
-    for rank, coin in enumerate(coins):  # already sorted by trading volume
-        score = _score(q, coin["symbol"], coin["name"] or "")
-        if score is not None:
-            hits.append(
-                (
-                    score,
-                    rank,
-                    {
-                        "asset_class": "crypto",
-                        "symbol": coin["symbol"],
-                        "name": coin["name"] or coin["symbol"],
-                        "exchange": "Binance",
-                        "quote": coin["quote"],
-                    },
-                )
-            )
-
+    # Stocks first: the tokenized-stock filter for coins needs the stock list.
     try:
         listing = get_cached(
             session, "stock:listing", settings.stock_listing_ttl_minutes, sources.stock_listing
@@ -238,6 +246,30 @@ def search(
                         "name": name,
                         "exchange": exchange or None,
                         "quote": None,
+                    },
+                )
+            )
+
+    try:
+        coins = crypto_tickers(session, sources, settings).payload
+    except ExternalAPIError:
+        coins, partial = [], True
+    tokenized = _tokenized_stock_filter(session)
+    for rank, coin in enumerate(coins):  # already sorted by trading volume
+        if tokenized(coin["symbol"]):
+            continue  # the real stock appears in the stock results
+        score = _score(q, coin["symbol"], coin["name"] or "")
+        if score is not None:
+            hits.append(
+                (
+                    score,
+                    rank,
+                    {
+                        "asset_class": "crypto",
+                        "symbol": coin["symbol"],
+                        "name": coin["name"] or coin["symbol"],
+                        "exchange": "Binance",
+                        "quote": coin["quote"],
                     },
                 )
             )

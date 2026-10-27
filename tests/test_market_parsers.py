@@ -126,3 +126,40 @@ def test_24h_ticker_errors(response, error):
     """Rate limits, server errors and unexpected bodies map to our error types."""
     with pytest.raises(error):
         binance_client(lambda req: response).fetch_24h_tickers()
+
+
+def test_per_second_limit_is_retried_once():
+    """A per-second limit message is retried after a short wait and then succeeds."""
+    calls = []
+
+    def handler(req):
+        """First answer is the burst-limit message, then real data."""
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(
+                200, json={"Information": "Please spread out requests (1 request per second)."}
+            )
+        return httpx.Response(200, json=AV_MOVERS)
+
+    client = av_client(handler)
+    client.burst_wait_seconds = 0
+    assert client.fetch_top_movers()["gainers"][0]["symbol"] == "NVDA"
+    assert len(calls) == 2
+
+
+def test_daily_limit_is_not_retried():
+    """The daily quota message fails immediately; retrying would only waste requests."""
+    calls = []
+
+    def handler(req):
+        """Always answer with the daily quota message."""
+        calls.append(1)
+        return httpx.Response(
+            200, json={"Information": "Our standard API rate limit is 25 requests per day."}
+        )
+
+    client = av_client(handler)
+    client.burst_wait_seconds = 0
+    with pytest.raises(RateLimitedError):
+        client.fetch_listing()
+    assert len(calls) == 1
