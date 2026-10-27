@@ -28,10 +28,19 @@ class Settings(BaseSettings):
     binance_base_url: str = "https://data-api.binance.vision"
     default_crypto_quote: str = "USDT"
 
-    # How long stored data counts as fresh before we spend an API request again.
-    cache_ttl_minutes: int = Field(default=60, ge=0)
-    # Binance has no daily quota, so crypto can refresh much more often.
+    # How long stored stock candles count as fresh before we spend an Alpha
+    # Vantage request again. The free key allows only ~25 requests per day.
+    cache_ttl_minutes: int = Field(default=180, ge=0)
+    # Binance has no daily quota, so crypto (candles and 24h tickers) can
+    # refresh much more often.
     crypto_cache_ttl_minutes: int = Field(default=5, ge=0)
+    # Stock top gainers/losers: one Alpha Vantage request per refresh.
+    stock_movers_ttl_minutes: int = Field(default=360, ge=0)
+    # List of all US stock symbols for search; changes rarely (weekly refresh).
+    stock_listing_ttl_minutes: int = Field(default=7 * 24 * 60, ge=0)
+    # Crypto movers only include coins with at least this much 24h turnover
+    # (in the quote currency), so tiny illiquid coins don't dominate the list.
+    crypto_movers_min_volume: float = Field(default=10_000_000, ge=0)
 
     # Comma separated list, e.g. "http://localhost:5173,https://myapp.example.com"
     cors_origins: Annotated[list[str], NoDecode] = []

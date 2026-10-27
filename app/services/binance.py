@@ -101,3 +101,30 @@ class BinanceClient:
             raise ExternalAPIError("Unexpected kline format from crypto data provider") from exc
         bars.sort(key=lambda b: b.ts)
         return bars
+
+    def fetch_24h_tickers(self) -> list[dict]:
+        """24-hour statistics for every trading pair (GET /api/v3/ticker/24hr).
+
+        One request covers all pairs (request weight 80), so the caller caches it
+        and derives top movers and the market overview from the same data.
+        Returns raw Binance dicts (symbol, lastPrice, priceChange, ...).
+        """
+        url = f"{self._settings.binance_base_url}/api/v3/ticker/24hr"
+        try:
+            response = self._http.get(url)
+        except httpx.HTTPError as exc:
+            logger.error("Binance 24h ticker request failed: %s", type(exc).__name__)
+            raise ExternalAPIError("Crypto data provider is unreachable") from exc
+        if response.status_code in (418, 429):
+            logger.warning("Binance rate limit hit (%s)", response.status_code)
+            raise RateLimitedError("Crypto data provider rate limit reached")
+        if response.status_code != 200:
+            logger.error("Binance 24h ticker error %s", response.status_code)
+            raise ExternalAPIError("Crypto data provider returned an error")
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ExternalAPIError("Unexpected response from crypto data provider") from exc
+        if not isinstance(data, list):
+            raise ExternalAPIError("Unexpected response format from crypto data provider")
+        return data

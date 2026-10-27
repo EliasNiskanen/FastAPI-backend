@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.db import get_engine
-from app.routers import crypto, stocks
+from app.routers import crypto, market, stocks
 from app.services.market import ExternalAPIError, RateLimitedError, SymbolNotFoundError
 
 settings = get_settings()
@@ -22,18 +22,20 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Market data backend", version="0.3.0")
+app = FastAPI(title="Market data backend", version="0.4.0")
 
 if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST"],
+        max_age=600,
         allow_headers=["*"],
     )
 
 app.include_router(stocks.router)
 app.include_router(crypto.router)
+app.include_router(market.router)
 
 
 # ---- Error handling: map internal errors to clean HTTP responses ----
@@ -64,7 +66,7 @@ def _external_error(_: Request, exc: ExternalAPIError) -> JSONResponse:
 @app.exception_handler(SQLAlchemyError)
 def _db_error(_: Request, exc: SQLAlchemyError) -> JSONResponse:
     """Any database failure -> HTTP 503, with details only in the server log."""
-    logger.exception("Database error")
+    logger.error("Database error: %s", type(exc).__name__, exc_info=exc)
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": "Database unavailable"}
     )

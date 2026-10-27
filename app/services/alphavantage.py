@@ -4,6 +4,9 @@ It only fetches and parses. Deciding *when* to call it (caching) lives in
 app/services/prices.py.
 """
 
+import csv
+import io
+import json
 import logging
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -21,6 +24,24 @@ from app.services.market import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _raise_for_limit(data: dict) -> None:
+    """Raise RateLimitedError if Alpha Vantage answered with a quota message.
+
+    Alpha Vantage answers HTTP 200 with a "Note" or "Information" text when the
+    free quota is used up (or the endpoint needs a premium key).
+    """
+    if "Note" in data or "Information" in data:
+        logger.warning(
+            "Alpha Vantage limit message: %s", data.get("Note") or data.get("Information")
+        )
+        raise RateLimitedError("Market data provider rate limit reached")
+
+
+def _number(value: object) -> float:
+    """Parse Alpha Vantage numbers, which arrive as strings such as "12.5" or "3.1%"."""
+    return float(str(value).strip().rstrip("%"))
 
 
 class AlphaVantageClient:
@@ -65,13 +86,7 @@ class AlphaVantageClient:
         """
         if "Error Message" in data:
             raise SymbolNotFoundError(f"Unknown symbol: {symbol}")
-        # Alpha Vantage answers HTTP 200 with a "Note"/"Information" text when
-        # the free quota is used up.
-        if "Note" in data or "Information" in data:
-            logger.warning(
-                "Alpha Vantage limit message: %s", data.get("Note") or data.get("Information")
-            )
-            raise RateLimitedError("Market data provider rate limit reached")
+        _raise_for_limit(data)
 
         series_key = "Time Series (Daily)" if interval == "daily" else f"Time Series ({interval})"
         series = data.get(series_key)
@@ -101,3 +116,95 @@ class AlphaVantageClient:
             )
         bars.sort(key=lambda b: b.ts)
         return bars
+
+    def _get(self, params: dict[str, str], what: str) -> httpx.Response:
+        """GET an Alpha Vantage function with the API key added; network errors -> ExternalAPIError."""
+        try:
+            response = self._http.get(
+                self._settings.alphavantage_base_url,
+                params={**params, "apikey": self._settings.alphavantage_api_key},
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            # Never log params: they contain the API key.
+            logger.error("Alpha Vantage %s request failed: %s", what, type(exc).__name__)
+            raise ExternalAPIError("Market data provider is unreachable") from exc
+        return response
+
+    def fetch_top_movers(self) -> dict:
+        """Today's biggest US stock gainers and losers (function TOP_GAINERS_LOSERS).
+
+        Returns {"last_updated": str | None, "gainers": [...], "losers": [...]},
+        each item {"symbol", "price", "change", "change_percent", "volume"}.
+        """
+        response = self._get({"function": "TOP_GAINERS_LOSERS"}, "top movers")
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ExternalAPIError("Unexpected response from market data provider") from exc
+        return self._parse_movers(data)
+
+    @staticmethod
+    def _parse_movers(data: dict) -> dict:
+        """Normalize a TOP_GAINERS_LOSERS response; rows that fail to parse are skipped."""
+        _raise_for_limit(data)
+        if "top_gainers" not in data or "top_losers" not in data:
+            raise ExternalAPIError("Unexpected response format from market data provider")
+
+        def rows(items: list) -> list[dict]:
+            """Convert provider rows to our field names."""
+            out = []
+            for item in items:
+                try:
+                    out.append(
+                        {
+                            "symbol": str(item["ticker"]).upper(),
+                            "price": _number(item["price"]),
+                            "change": _number(item["change_amount"]),
+                            "change_percent": _number(item["change_percentage"]),
+                            "volume": _number(item["volume"]),
+                        }
+                    )
+                except (KeyError, ValueError):
+                    continue
+            return out
+
+        return {
+            "last_updated": data.get("last_updated"),
+            "gainers": rows(data["top_gainers"]),
+            "losers": rows(data["top_losers"]),
+        }
+
+    def fetch_listing(self) -> list[list[str]]:
+        """All actively listed US stocks and ETFs (function LISTING_STATUS, a CSV file).
+
+        Returns compact rows [symbol, name, exchange, asset_type] for search.
+        """
+        response = self._get({"function": "LISTING_STATUS"}, "listing")
+        return self._parse_listing(response.text)
+
+    @staticmethod
+    def _parse_listing(text: str) -> list[list[str]]:
+        """Parse the LISTING_STATUS CSV. A JSON body instead of CSV means an error message."""
+        stripped = text.lstrip()
+        if stripped.startswith("{"):
+            try:
+                data = json.loads(stripped)
+            except ValueError as exc:
+                raise ExternalAPIError("Unexpected response from market data provider") from exc
+            _raise_for_limit(data)
+            raise ExternalAPIError("Unexpected response from market data provider")
+
+        reader = csv.DictReader(io.StringIO(text))
+        if not reader.fieldnames or "symbol" not in reader.fieldnames:
+            raise ExternalAPIError("Unexpected listing format from market data provider")
+        return [
+            [
+                row["symbol"],
+                row.get("name") or "",
+                row.get("exchange") or "",
+                row.get("assetType") or "",
+            ]
+            for row in reader
+            if row.get("symbol") and (row.get("status") or "Active") == "Active"
+        ]

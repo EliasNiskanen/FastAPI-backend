@@ -1,13 +1,13 @@
 # Deploying
 
-The backend ships as one Docker image that reads all configuration from
-environment variables. The same image runs locally (docker compose), on
+The app is two Docker images: the FastAPI backend and the React frontend
+(nginx). Both read their configuration from environment variables. The same image runs locally (docker compose), on
 **Google Cloud Run** and on **AWS ECS Express Mode**. Only the managed
 PostgreSQL and the place secrets live differ.
 
 ```mermaid
 flowchart LR
-    FE[Frontend] -->|GET /api/stocks/SYMBOL| API[FastAPI container]
+    FE[Frontend container] -->|GET /api/...| API[FastAPI container]
     SCH[GitHub Actions cron] -->|POST /api/ingest/SYMBOL| API
     API -->|read / upsert| DB[(PostgreSQL)]
     API -->|stocks, only when stale| AV[Alpha Vantage]
@@ -20,10 +20,13 @@ flowchart LR
 |---|---|---|
 | `DATABASE_URL` | yes | `postgresql+psycopg://user:pass@host:5432/db`. URL-encode special characters in the password. |
 | `ALPHAVANTAGE_API_KEY` | yes | Keep it in a secret store, never in code. |
-| `CACHE_TTL_MINUTES` | no | Default 60. How old stored stock data may be before Alpha Vantage is called again. |
+| `CACHE_TTL_MINUTES` | no | Default 180. How old stored stock data may be before Alpha Vantage is called again (the free key allows ~25 requests a day). |
 | `CRYPTO_CACHE_TTL_MINUTES` | no | Default 5. Same for crypto (Binance has no daily quota). |
-| `DEFAULT_CRYPTO_QUOTE` | no | Default `USDT`. Quote currency when a request has no `?quote=`. |
-| `CORS_ORIGINS` | no | Comma-separated frontend origins. |
+| `DEFAULT_CRYPTO_QUOTE` | no | Default `USDT`. Quote currency when a request has no `?quote=`, and for movers and the market table. |
+| `STOCK_MOVERS_TTL_MINUTES` | no | Default 360. How often stock gainers/losers are refreshed (one Alpha Vantage request each). |
+| `STOCK_LISTING_TTL_MINUTES` | no | Default 10080 (a week). How often the stock symbol list used by search is refreshed. |
+| `CRYPTO_MOVERS_MIN_VOLUME` | no | Default 10,000,000. Minimum 24h turnover (quote currency) for a coin to appear in movers. |
+| `CORS_ORIGINS` | no | Comma-separated frontend origins. `deploy/gcp/frontend.sh` sets it. |
 | `INGEST_TOKEN` | recommended | Protects `POST /api/ingest/*`. Generate with `openssl rand -hex 32`. |
 | `RUN_MIGRATIONS` | no | Default `true`: the container runs `alembic upgrade head` before starting. |
 | `PORT` | no | Set automatically by Cloud Run. Default 8000. |
@@ -53,8 +56,21 @@ Neon's free plan gives you PostgreSQL without a credit card.
    ```
 
    It asks for the Neon connection string and your Alpha Vantage key, then
-   builds, deploys and prints the app URL. Run the same script again to
+   builds, deploys and prints the backend URL. Run the same script again to
    redeploy after code changes.
+
+3. Deploy the frontend:
+
+   ```bash
+   bash deploy/gcp/frontend.sh
+   ```
+
+   It deploys `frontend/` as a second Cloud Run service pointed at the
+   backend, adds the frontend's address to the backend's `CORS_ORIGINS`, and
+   prints the address to open.
+
+The frontend container's only setting is `API_URL` (the backend address),
+written into `/config.js` at startup.
 
 The longer sections below cover Cloud SQL, GitHub Actions deploys and AWS.
 
