@@ -101,7 +101,8 @@ export function Hero({
       className="relative isolate px-4 pt-14 pb-16 sm:px-8 sm:pt-20 lg:pb-24"
     >
       <Orbs />
-      {!STOCKS_ENABLED && (
+      {/* The pause notice belongs on the mixed front page, not the Crypto tab. */}
+      {!STOCKS_ENABLED && mode === 'all' && (
         <div className="mb-10 sm:mb-12">
           <StocksPausedBanner />
         </div>
